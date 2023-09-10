@@ -1,0 +1,578 @@
+#!/bin/bash
+
+# Maintainer: Quincy Nyan <quinc@nekonyan.fun>
+
+# Hentaifetch - Neofetch but with hentai
+# https://github.com/quincynyan/hentaifetch
+# 
+# The GNU General Public License v3.0
+#
+# This file is part of Hentaifetch.
+#
+# Hentaifetch is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# Hentaifetch is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License v3 for more details.
+#
+# You should have received a copy of the GNU General Public License v3
+# along with Hentaifetch.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+version="0.1.0"
+
+# Check if neofetch is installed
+if ! command -v neofetch >/dev/null 2>&1; then
+	echo "Error: neofetch is not installed"
+	exit 1
+fi
+
+# Check if w3m is installed
+if ! command -v w3m >/dev/null 2>&1; then
+	echo "Error: w3m is not installed"
+	exit 1
+fi
+
+# Check if chafa is installed
+if ! command -v chafa >/dev/null 2>&1; then
+	echo "Error: chafa is not installed"
+	exit 1
+fi
+
+# Default variables
+# explicit=0
+# lewd=0
+# backend="w3m"
+# yoffset=0
+# xoffset=0
+# width=0
+# height=0
+# gap=3
+# id=0
+# tags="-guro -scat -furry"
+# sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
+# # sites=("nhentai") 	# Uncomment this line to only use nhentai
+
+tmpfile=$(mktemp)
+trap "rm -f $tmpfile" EXIT
+site=""
+explicit=0
+lewd=0
+backend="w3m"
+yoffset=0
+xoffset=0
+width=0
+height=0
+gap=3
+id=0
+tags="-guro -scat -furry"
+sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
+
+# Look for config file and load variables from it if it exists
+config_file="$HOME/.config/hentaifetch.conf"
+if [ -f "$config_file" ]; then
+	. "$config_file"
+else
+	touch "$config_file"
+	echo "explicit=0" >> "$config_file"
+	echo "lewd=0" >> "$config_file"
+	echo "backend=\"w3m\"" >> "$config_file"
+	echo "yoffset=0" >> "$config_file"
+	echo "xoffset=0" >> "$config_file"
+	echo "width=0" >> "$config_file"
+	echo "height=0" >> "$config_file"
+	echo "gap=3" >> "$config_file"
+	echo "id=0" >> "$config_file"
+	echo "tags=\"\"" >> "$config_file"
+	echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\")" >> "$config_file"
+	echo "# sites=(\"nhentai\") # Uncomment this line to only use nhentai" >> "$config_file"
+fi
+
+# Parse arguments
+while [ $# -gt 0 ]; do
+	case "$1" in
+		#if nhentai code (6 digits)
+		[0-9][0-9][0-9][0-9][0-9][0-9])
+			id="$1"
+			;;
+		# if in sites array
+		"gelbooru"|"danbooru"|"konachan"|"yandere"|"sankaku"|"rule34"|"realbooru"|"xbooru"|"tbib"|"lolibooru"|"idolcomplex"|"anime-pictures"|"zerochan"|"safebooru"|"nekos.life")
+			site="$1"
+			;;
+		-h|--help|help)
+			# if there is second argument
+			if [ $# -gt 1 ]; then
+				case "$2" in
+					"-h"|"--help"|help)
+						echo "Usage: hentaifetch -h [OPTION]..."
+						echo "Display this help message"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -h"
+						echo "  hentaifetch -h --site"
+						echo ""
+						exit 0
+						;;
+					"-v"|"--version"|version)
+						echo "Usage: hentaifetch -v"
+						echo "Display version info"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -v"
+						echo "  hentaifetch --version"
+						echo ""
+						exit 0
+						;;
+					"-e"|"--explicit")
+						echo "Usage: hentaifetch -e"
+						echo "Enable explicit content"
+						echo "Default: disabled (0)"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -e"
+						echo "  hentaifetch --explicit"
+						echo ""
+						exit 0
+						;;
+					"-l"|"--lewd")
+						echo "Usage: hentaifetch -l"
+						echo "Enable lewd content"
+						echo "Default: disabled (0)"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -l"
+						echo "  hentaifetch --lewd"
+						echo ""
+						exit 0
+						;;
+					"-b"|"--backend")
+						echo "Usage: hentaifetch -b [BACKEND]"
+						echo "Set the backend to use"
+						echo "Default: w3m"
+						echo ""
+						echo "Valid backends:"
+						echo "  w3m"
+						echo "  chafa"
+						echo ""
+						echo "Additional backends: (Needs to be installed manually)"
+						echo "  ascii"
+						echo "  caca"
+						echo "  catimg"
+						echo "  jp2a"
+						echo "  iterm2"
+						echo "  kitty"
+						echo "  off"
+						echo "  sixel"
+						echo "  pot"
+						echo "  pixterm"
+						echo "  termpix"
+						echo "  tycat"
+						echo "  viu"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -b chafa"
+						echo "  hentaifetch --backend w3m"
+						echo ""
+						exit 0
+						;;
+					"-y"|"--yoffset")
+						echo "Usage: hentaifetch -y [YOFFSET]"
+						echo "Set the y offset"
+						echo "How close the image will be to the top edge of the window."
+						echo "Default: 0"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -y 4"
+						echo "  hentaifetch --yoffset 20"
+						echo ""
+						exit 0
+						;;
+					"-x"|"--xoffset")
+						echo "Usage: hentaifetch -x [XOFFSET]"
+						echo "Set the x offset"
+						echo "How close the image will be to the left edge of the window."
+						echo "Default: 0"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -x 4"
+						echo "  hentaifetch --xoffset 20"
+						echo ""
+						exit 0
+						;;
+					"-W"|"--width")
+						echo "Usage: hentaifetch -W [WIDTH]"
+						echo "Set the width"
+						echo "Default: 0 (auto)"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -W 50"
+						echo "  hentaifetch --width 100"
+						echo ""
+						exit 0
+						;;
+					"-H"|"--height")
+						echo "Usage: hentaifetch -H [HEIGHT]"
+						echo "Set the height"
+						echo "Default: 0 (auto)"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -H 50"
+						echo "  hentaifetch --height 100"
+						echo ""
+						exit 0
+						;;
+					"-g"|"--gap")
+						echo "Usage: hentaifetch -g [GAP]"
+						echo "Set the gap"
+						echo "Gap between image and text."
+						echo "Default: 3"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -g 4"
+						echo "  hentaifetch --gap 1"
+						echo ""
+						exit 0
+						;;
+					"-i"|"--id")
+						echo "Usage: hentaifetch -i [ID]"
+						echo "Set the ID"
+						echo "Default: 0 (random from wholesomelist.com)"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -i 177013"
+						echo "  hentaifetch --id 228922"
+						echo ""
+						exit 0
+						;;
+					"-t"|"--tags")
+						echo "Usage: hentaifetch -t [TAGS]"
+						echo "Set the tags"
+						echo "Default: \"-guro -scat -furry\""
+						echo "See https://gelbooru.com/index.php?page=wiki&s=view&id=25921 for more info"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -t \"1boy multiple-girls\""
+						echo "  hentaifetch --tags \"-2boys 1girl -feet ~astolfo neko*\""
+						echo ""
+						exit 0
+						;;
+					"-s"|"--site")
+						echo "Usage: hentaifetch -s [SITE]"
+						echo "Set the site"
+						echo "Default: random from sites array"
+						echo ""
+						echo "Valid sites:"
+						echo "  gelbooru"
+						echo "  danbooru"
+						echo "  konachan"
+						echo "  yandere"
+						echo "  sankaku"
+						echo "  rule34"
+						echo "  realbooru"
+						echo "  xbooru"
+						echo "  tbib"
+						echo "  lolibooru"
+						echo "  idolcomplex"
+						echo "  anime-pictures"
+						echo "  zerochan"
+						echo "  safebooru"
+						echo "  nekos.life"
+						echo "  nhentai"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch -s gelbooru"
+						echo "  hentaifetch --site danbooru"
+						echo "  hentaifetch safebooru"
+						echo "  hentaifetch 292495"
+						echo ""
+						exit 0
+						;;
+					*)
+						echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
+						echo "Hentaifetch - Neofetch but with hentai"
+						echo ""
+						echo "  -h, --help            Display this help message"
+						echo "  -v, --version         Display version info"
+						echo "  -e, --explicit        Enable explicit content"
+						echo "  -l, --lewd            Enable lewd content"
+						echo "  -b, --backend BACKEND Set the backend to use"
+						echo "  -y, --yoffset YOFFSET Set the y offset"
+						echo "  -x, --xoffset XOFFSET Set the x offset"
+						echo "  -W, --width WIDTH     Set the width"
+						echo "  -H, --height HEIGHT   Set the height"
+						echo "  -g, --gap GAP         Set the gap"
+						echo "  -i, --id ID           Set the ID"
+						echo "  -t, --tags TAGS       Set the tags"
+						echo "  -s, --site SITE     Set the site"
+						echo ""
+						echo "Examples:"
+						echo "  hentaifetch 177013"
+						echo "  hentaifetch gelbooru -e -l"
+						echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
+						echo ""
+						exit 0
+						;;
+				esac
+			else
+				echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
+				echo "Hentaifetch - Neofetch but with hentai"
+				echo ""
+				echo "  -h, --help            Display this help message"
+				echo "  -v, --version         Display version info"
+				echo "  -e, --explicit        Enable explicit content"
+				echo "  -l, --lewd            Enable lewd content"
+				echo "  -b, --backend BACKEND Set the backend to use"
+				echo "  -y, --yoffset YOFFSET Set the y offset"
+				echo "  -x, --xoffset XOFFSET Set the x offset"
+				echo "  -W, --width WIDTH     Set the width"
+				echo "  -H, --height HEIGHT   Set the height"
+				echo "  -g, --gap GAP         Set the gap"
+				echo "  -i, --id ID           Set the ID"
+				echo "  -t, --tags TAGS       Set the tags"
+				echo "  -s, --site SITE     Set the site"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch 177013"
+				echo "  hentaifetch gelbooru -e -l"
+				echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
+				echo ""
+				exit 0
+			fi
+			;;
+		-v|--version|version)
+			echo "Hentaifetch $version"
+			exit 0
+			;;
+		-e|--explicit)
+			explicit=1
+			;;
+		-l|--lewd)
+			lewd=1
+			;;
+		-b|--backend)
+			shift
+			backend="$1"
+			;;
+		-y|--yoffset)
+			shift
+			yoffset="$1"
+			;;
+		-x|--xoffset)
+			shift
+			xoffset="$1"
+			;;
+		-W|--width)
+			shift
+			width="$1"
+			;;
+		-H|--height)
+			shift
+			height="$1"
+			;;
+		-g|--gap)
+			shift
+			gap="$1"
+			;;
+		-i|--id)
+			shift
+			id="$1"
+			;;
+		-t|--tags)
+			shift
+			tags="$1"
+			;;
+		-s|--site)
+			shift
+			site="$1"
+			;;
+		*)
+			echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
+			echo "Hentaifetch - Neofetch but with hentai"
+			echo ""
+			echo "  -h, --help            Display this help message"
+			echo "  -v, --version         Display version info"
+			echo "  -e, --explicit        Enable explicit content"
+			echo "  -l, --lewd            Enable lewd content"
+			echo "  -b, --backend BACKEND Set the backend to use"
+			echo "  -y, --yoffset YOFFSET Set the y offset"
+			echo "  -x, --xoffset XOFFSET Set the x offset"
+			echo "  -W, --width WIDTH     Set the width"
+			echo "  -H, --height HEIGHT   Set the height"
+			echo "  -g, --gap GAP         Set the gap"
+			echo "  -i, --id ID           Set the ID"
+			echo "  -t, --tags TAGS       Set the tags"
+			echo "  -s, --site SITE     Set the site"
+			echo ""
+			echo "Examples:"
+			echo "  hentaifetch 177013"
+			echo "  hentaifetch gelbooru -e -l"
+			echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
+			echo ""
+			exit 0
+			;;
+	esac
+	shift
+done
+
+# Check if explicit and lewd are both enabled
+if [ "$explicit" = 1 ] && [ "$lewd" = 1 ]; then
+	echo "Error: explicit and lewd cannot both be enabled"
+	exit 1
+fi
+
+# Check if site is in sites array
+if [ "$site" != "" ]; then
+	if [[ ! " ${sites[@]} " =~ " ${site} " ]]; then
+		echo "Error: invalid site"
+		echo "See hentaifetch -h -s for valid sites"
+		exit 1
+	fi
+fi
+
+# Check if backend is valid
+if [ "$backend" != "w3m" ] && [ "$backend" != "chafa" ] && [ "$backend" != "ascii" ] && [ "$backend" != "caca" ] && [ "$backend" != "catimg" ] && [ "$backend" != "jp2a" ] && [ "$backend" != "iterm2" ] && [ "$backend" != "kitty" ] && [ "$backend" != "off" ] && [ "$backend" != "sixel" ] && [ "$backend" != "pot" ] && [ "$backend" != "pixterm" ] && [ "$backend" != "termpix" ] && [ "$backend" != "tycat" ] && [ "$backend" != "viu" ]; then
+	echo "Error: invalid backend"
+	echo "See hentaifetch -h -b for valid backends"
+	exit 1
+fi
+
+# Check if yoffset is a number
+if ! [[ "$yoffset" =~ ^[0-9]+$ ]]; then
+	echo "Error: yoffset must be a number"
+	exit 1
+fi
+
+# Check if xoffset is a number
+if ! [[ "$xoffset" =~ ^[0-9]+$ ]]; then
+	echo "Error: xoffset must be a number"
+	exit 1
+fi
+
+# Check if width is a number
+if ! [[ "$width" =~ ^[0-9]+$ ]]; then
+	echo "Error: width must be a number"
+	exit 1
+fi
+
+# Check if height is a number
+if ! [[ "$height" =~ ^[0-9]+$ ]]; then
+	echo "Error: height must be a number"
+	exit 1
+fi
+
+# Check if gap is a number
+if ! [[ "$gap" =~ ^[0-9]+$ ]]; then
+	echo "Error: gap must be a number"
+	exit 1
+fi
+
+# Check if id is a number
+if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+	echo "Error: id must be a number"
+	exit 1
+fi
+
+# Calculate text_padding
+# text_padding="$(((width + xoffset) / font_width + gap))"
+# Copy-pasted from neofetch
+# font_width="$((term_width / columns))"
+# gap=3
+columns=$(tput cols)
+get_window_size() {
+    # This functions gets the current window size in
+    # pixels.
+    #
+    # We first try to use the escape sequence "\033[14t"
+    # to get the terminal window size in pixels. If this
+    # fails we then fallback to using "xdotool" or other
+    # programs.
+
+    # Tmux has a special way of reading escape sequences
+    # so we have to use a slightly different sequence to
+    # get the terminal size.
+    if [[ "$image_backend" == "tycat" ]]; then
+        printf '%b' '\e}qs\000'
+
+    elif [[ -z $VTE_VERSION ]]; then
+        case ${TMUX:-null} in
+            "null") printf '%b' '\e[14t' ;;
+            *)      printf '%b' '\ePtmux;\e\e[14t\e\\ ' ;;
+        esac
+    fi
+
+    # The escape codes above print the desired output as
+    # user input so we have to use read to store the out
+    # -put as a variable.
+    # The 1 second timeout is required for older bash
+    #
+    # False positive.
+    # shellcheck disable=2141
+    case $bash_version in
+        4|5) IFS=';t' read -d t -t 0.05 -sra term_size ;;
+        *)   IFS=';t' read -d t -t 1 -sra term_size ;;
+    esac
+    unset IFS
+
+    # Split the string into height/width.
+    if [[ "$image_backend" == "tycat" ]]; then
+        term_width="$((term_size[2] * term_size[0]))"
+        term_height="$((term_size[3] * term_size[1]))"
+
+    else
+        term_height="${term_size[1]}"
+        term_width="${term_size[2]}"
+    fi
+
+    # Get terminal width/height.
+    if (( "${term_width:-0}" < 50 )) && [[ "$DISPLAY" && $os != "Mac OS X" && $os != "macOS" ]]; then
+        if type -p xdotool &>/dev/null; then
+            IFS=$'\n' read -d "" -ra win \
+                <<< "$(xdotool getactivewindow getwindowgeometry --shell %1)"
+            term_width="${win[3]/WIDTH=}"
+            term_height="${win[4]/HEIGHT=}"
+
+        elif type -p xwininfo &>/dev/null; then
+            # Get the focused window's ID.
+            if type -p xdo &>/dev/null; then
+                current_window="$(xdo id)"
+
+            elif type -p xprop &>/dev/null; then
+                current_window="$(xprop -root _NET_ACTIVE_WINDOW)"
+                current_window="${current_window##* }"
+
+            elif type -p xdpyinfo &>/dev/null; then
+                current_window="$(xdpyinfo | grep -F "focus:")"
+                current_window="${current_window/*window }"
+                current_window="${current_window/,*}"
+            fi
+
+            # If the ID was found get the window size.
+            if [[ "$current_window" ]]; then
+                term_size=("$(xwininfo -id "$current_window")")
+                term_width="${term_size[0]#*Width: }"
+                term_width="${term_width/$'\n'*}"
+                term_height="${term_size[0]/*Height: }"
+                term_height="${term_height/$'\n'*}"
+            fi
+        fi
+    fi
+
+    term_width="${term_width:-0}"
+}
+get_window_size
+font_width="$((term_width / columns))"
+text_padding="$(((width + xoffset) / font_width + gap))"
+
+# Temporarily append text_padding to neofetch config
+# This is so that neofetch will print the image in the correct position
+neoconf="$HOME/.config/neofetch/config"
+if [ -f "$neoconf" ]; then
+	sed -i "s/text_padding=.*/text_padding=$text_padding/" "$neoconf"
+else
+	mkdir -p "$HOME/.config/neofetch"
+	touch "$neoconf"
+	echo "text_padding=$text_padding" >> "$neoconf"
+fi
