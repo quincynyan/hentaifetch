@@ -22,7 +22,7 @@
 # along with Hentaifetch.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-version="0.1.0"
+version="0.1.1"
 
 # Check if neofetch is installed
 if ! command -v neofetch >/dev/null 2>&1; then
@@ -70,6 +70,7 @@ gap=3
 id=0
 tags="-guro -scat -furry"
 sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
+site=""
 
 # Look for config file and load variables from it if it exists
 config_file="$HOME/.config/hentaifetch.conf"
@@ -97,6 +98,7 @@ while [ $# -gt 0 ]; do
 		#if nhentai code (6 digits)
 		[0-9][0-9][0-9][0-9][0-9][0-9])
 			id="$1"
+			site="nhentai"
 			;;
 		# if in sites array
 		"gelbooru"|"danbooru"|"konachan"|"yandere"|"sankaku"|"rule34"|"realbooru"|"xbooru"|"tbib"|"lolibooru"|"idolcomplex"|"anime-pictures"|"zerochan"|"safebooru"|"nekos.life")
@@ -475,104 +477,48 @@ if ! [[ "$id" =~ ^[0-9]+$ ]]; then
 	exit 1
 fi
 
-# Calculate text_padding
-# text_padding="$(((width + xoffset) / font_width + gap))"
-# Copy-pasted from neofetch
-# font_width="$((term_width / columns))"
-# gap=3
-columns=$(tput cols)
-get_window_size() {
-    # This functions gets the current window size in
-    # pixels.
-    #
-    # We first try to use the escape sequence "\033[14t"
-    # to get the terminal window size in pixels. If this
-    # fails we then fallback to using "xdotool" or other
-    # programs.
-
-    # Tmux has a special way of reading escape sequences
-    # so we have to use a slightly different sequence to
-    # get the terminal size.
-    if [[ "$image_backend" == "tycat" ]]; then
-        printf '%b' '\e}qs\000'
-
-    elif [[ -z $VTE_VERSION ]]; then
-        case ${TMUX:-null} in
-            "null") printf '%b' '\e[14t' ;;
-            *)      printf '%b' '\ePtmux;\e\e[14t\e\\ ' ;;
-        esac
-    fi
-
-    # The escape codes above print the desired output as
-    # user input so we have to use read to store the out
-    # -put as a variable.
-    # The 1 second timeout is required for older bash
-    #
-    # False positive.
-    # shellcheck disable=2141
-    case $bash_version in
-        4|5) IFS=';t' read -d t -t 0.05 -sra term_size ;;
-        *)   IFS=';t' read -d t -t 1 -sra term_size ;;
-    esac
-    unset IFS
-
-    # Split the string into height/width.
-    if [[ "$image_backend" == "tycat" ]]; then
-        term_width="$((term_size[2] * term_size[0]))"
-        term_height="$((term_size[3] * term_size[1]))"
-
-    else
-        term_height="${term_size[1]}"
-        term_width="${term_size[2]}"
-    fi
-
-    # Get terminal width/height.
-    if (( "${term_width:-0}" < 50 )) && [[ "$DISPLAY" && $os != "Mac OS X" && $os != "macOS" ]]; then
-        if type -p xdotool &>/dev/null; then
-            IFS=$'\n' read -d "" -ra win \
-                <<< "$(xdotool getactivewindow getwindowgeometry --shell %1)"
-            term_width="${win[3]/WIDTH=}"
-            term_height="${win[4]/HEIGHT=}"
-
-        elif type -p xwininfo &>/dev/null; then
-            # Get the focused window's ID.
-            if type -p xdo &>/dev/null; then
-                current_window="$(xdo id)"
-
-            elif type -p xprop &>/dev/null; then
-                current_window="$(xprop -root _NET_ACTIVE_WINDOW)"
-                current_window="${current_window##* }"
-
-            elif type -p xdpyinfo &>/dev/null; then
-                current_window="$(xdpyinfo | grep -F "focus:")"
-                current_window="${current_window/*window }"
-                current_window="${current_window/,*}"
-            fi
-
-            # If the ID was found get the window size.
-            if [[ "$current_window" ]]; then
-                term_size=("$(xwininfo -id "$current_window")")
-                term_width="${term_size[0]#*Width: }"
-                term_width="${term_width/$'\n'*}"
-                term_height="${term_size[0]/*Height: }"
-                term_height="${term_height/$'\n'*}"
-            fi
-        fi
-    fi
-
-    term_width="${term_width:-0}"
-}
-get_window_size
-font_width="$((term_width / columns))"
-text_padding="$(((width + xoffset) / font_width + gap))"
-
-# Temporarily append text_padding to neofetch config
-# This is so that neofetch will print the image in the correct position
-neoconf="$HOME/.config/neofetch/config"
-if [ -f "$neoconf" ]; then
-	sed -i "s/text_padding=.*/text_padding=$text_padding/" "$neoconf"
-else
-	mkdir -p "$HOME/.config/neofetch"
-	touch "$neoconf"
-	echo "text_padding=$text_padding" >> "$neoconf"
+if [ "$site" = "" ] && [ "$id" != 0 ]; then
+	site="nhentai"
+elif [ "$site" = "" ] && [ "$id" = 0 ]; then
+	site="${sites[$RANDOM % ${#sites[@]}]}"
 fi
+
+case "$site" in
+	"gelbooru")
+		if [ "$id" != 0 ]; then
+			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&id=$id")
+			image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
+		else
+			tags=$(echo "$tags" | sed 's/ /+/g')
+			if [ "$explicit" = 1 ]; then
+				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3aexplicit+sort%3arandom+$tags")
+			elif [ "$lewd" = 1 ]; then
+				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3alewd+sort%3arandom+$tags")
+			else
+				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3asafe+sort%3arandom+$tags")
+			fi
+			image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
+			id=$(echo "$xml_full" | grep -oPm1 '<id>\K[^<]+')
+		fi
+		if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
+				image_url=$(echo "$xml_full" | grep -oPm1 '<preview_url>\K[^<]+')
+		fi
+		;;
+	"danbooru")
+		if [ "$id" != 0 ]; then
+			image_url=$(curl -s "https://danbooru.donmai.us/posts/$id.json" | grep -oPm1 "(?<=file_url=\")[^\"]+")
+		else
+			tags=$(echo "$tags" | sed 's/ /+/g')
+			if [ "$explicit" = 1 ]; then
+				image_url=curl -s "https://danbooru.donmai.us/posts.json?limit=1&random=true&tags=rating%3aexplicit+$tags" | grep -oPm1 "(?<=file_url=\")[^\"]+"
+			elif [ "$lewd" = 1 ]; then
+				image_url=curl -s "https://danbooru.donmai.us/posts.json?limit=1&random=true&tags=rating%3alewd+$tags" | grep -oPm1 "(?<=file_url=\")[^\"]+"
+			else
+				image_url=curl -s "https://danbooru.donmai.us/posts.json?limit=1&random=true&tags=rating%3asafe+$tags" | grep -oPm1 "(?<=file_url=\")[^\"]+"
+			fi
+		fi
+		;;
+esac
+
+echo "$image_url"
+echo "$id"
