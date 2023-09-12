@@ -55,6 +55,7 @@ fi
 # tags="-guro -scat -furry"
 # sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
 # # sites=("nhentai") 	# Uncomment this line to only use nhentai
+# nh_cookie=""
 
 tmpfile=$(mktemp)
 trap "rm -f $tmpfile" EXIT
@@ -71,6 +72,7 @@ id=0
 tags="-guro -scat -furry"
 sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
 site=""
+nh_cookie=""
 
 # Look for config file and load variables from it if it exists
 config_file="$HOME/.config/hentaifetch.conf"
@@ -90,6 +92,7 @@ else
 	echo "tags=\"\"" >> "$config_file"
 	echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\")" >> "$config_file"
 	echo "# sites=(\"nhentai\") # Uncomment this line to only use nhentai" >> "$config_file"
+	echo "nh_cookie=\"\"" >> "$config_file"
 fi
 
 # Parse arguments
@@ -101,7 +104,7 @@ while [ $# -gt 0 ]; do
 			site="nhentai"
 			;;
 		# if in sites array
-		"gelbooru"|"danbooru"|"konachan"|"yandere"|"sankaku"|"rule34"|"realbooru"|"xbooru"|"tbib"|"lolibooru"|"idolcomplex"|"anime-pictures"|"zerochan"|"safebooru"|"nekos.life")
+		"gelbooru"|"danbooru"|"konachan"|"yandere"|"sankaku"|"rule34"|"realbooru"|"xbooru"|"tbib"|"lolibooru"|"idolcomplex"|"anime-pictures"|"zerochan"|"safebooru"|"nekos.life"|"nhentai")
 			site="$1"
 			;;
 		-h|--help|help)
@@ -292,6 +295,24 @@ while [ $# -gt 0 ]; do
 						echo ""
 						exit 0
 						;;
+					"cookie")
+						echo "NHentai has a new barrier by Cloudflare that throws a 403 error, which curl can't pass due to the javascript challenge (unless you pass -FsSL)."
+						echo "One way to bypass this is to use a cookie from a browser that has already passed the challenge."
+						echo "To get the cookie, open nhentai.net in your browser, open the developer tools, go to the network tab, and reload the page."
+						echo "Click on the first request (200 GET nhentai.net /), and copy the value of the cookie header (which is in the Request Headers section at the bottom)."
+						echo "Then, edit the config file and paste the value into nh_cookie."
+						echo ""
+						echo "1. Open nhentai.net in your browser"
+						echo "2. Open the developer tools (F12)"
+						echo "3. Go to the network tab"
+						echo "4. Reload the page"
+						echo "5. Click on the first request (Usually 200 GET nhentai.net /)"
+						echo "6. Scroll down to the request headers"
+						echo "7. Copy the Cookie value"
+						echo "8. Edit the config file and paste the value into nh_cookie"
+						echo ""
+						exit 0
+						;;
 					*)
 						echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
 						echo "Hentaifetch - Neofetch but with hentai"
@@ -427,7 +448,7 @@ fi
 
 # Check if site is in sites array
 if [ "$site" != "" ]; then
-	if [[ ! " ${sites[@]} " =~ " ${site} " ]]; then
+	if [ "$site" != "gelbooru" ] && [ "$site" != "danbooru" ] && [ "$site" != "konachan" ] && [ "$site" != "yandere" ] && [ "$site" != "sankaku" ] && [ "$site" != "rule34" ] && [ "$site" != "realbooru" ] && [ "$site" != "xbooru" ] && [ "$site" != "tbib" ] && [ "$site" != "lolibooru" ] && [ "$site" != "idolcomplex" ] && [ "$site" != "anime-pictures" ] && [ "$site" != "zerochan" ] && [ "$site" != "safebooru" ] && [ "$site" != "nekos.life" ] && [ "$site" != "nhentai" ]; then
 		echo "Error: invalid site"
 		echo "See hentaifetch -h -s for valid sites"
 		exit 1
@@ -483,11 +504,47 @@ elif [ "$site" = "" ] && [ "$id" = 0 ]; then
 	site="${sites[$RANDOM % ${#sites[@]}]}"
 fi
 
+if ! ping -c 1 rule34.xxx >/dev/null 2>&1; then
+	echo "Error: You are offline"
+	exit 1
+fi
+
+max_retries=5
+
+getdanbooru() {
+	if [ "$explicit" = 1 ]; then
+		json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Aexplicit+age%3A%3C1month+$tags")
+	elif [ "$lewd" = 1 ]; then
+		sq=$((RANDOM % 2))
+		if [ "$sq" = 0 ]; then
+			json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Asensitive+age%3A%3C1month+$tags")
+		else
+			json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Aquestionable+age%3A%3C1month+$tags")
+		fi
+	else
+		json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Ageneral+age%3A%3C1month+$tags")
+	fi
+	id=$(echo "$json_full" | jq -r '.[0].id')
+	image_url=$(echo "$json_full" | jq -r '.[0].file_url')
+	if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
+		image_url=$(echo "$json_full" | jq -r '.[0].preview_file_url')
+	fi
+	if [ "$image_url" = "null" ]; then
+		if [ "$max_retries" -gt 0 ]; then
+			max_retries=$((max_retries - 1))
+			getdanbooru
+		else
+			echo "Max retries exceeded"
+			echo "Error: no image found"
+			exit 1
+		fi
+	fi
+}
+
 case "$site" in
 	"gelbooru")
 		if [ "$id" != 0 ]; then
 			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&id=$id")
-			image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
 		else
 			tags=$(echo "$tags" | sed 's/ /+/g')
 			if [ "$explicit" = 1 ]; then
@@ -497,28 +554,51 @@ case "$site" in
 			else
 				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3asafe+sort%3arandom+$tags")
 			fi
-			image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
 			id=$(echo "$xml_full" | grep -oPm1 '<id>\K[^<]+')
 		fi
+		image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
 		if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
 				image_url=$(echo "$xml_full" | grep -oPm1 '<preview_url>\K[^<]+')
 		fi
 		;;
 	"danbooru")
 		if [ "$id" != 0 ]; then
-			image_url=$(curl -s "https://danbooru.donmai.us/posts/$id.json" | grep -oPm1 "(?<=file_url=\")[^\"]+")
+			json_full=$(curl -s "https://danbooru.donmai.us/posts/$id.json")
+			image_url=$(echo "$json_full" | jq -r '.[0].file_url')
+			if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
+				image_url=$(echo "$json_full" | jq -r '.[0].preview_file_url')
+			fi
 		else
-			tags=$(echo "$tags" | sed 's/ /+/g')
-			if [ "$explicit" = 1 ]; then
-				image_url=curl -s "https://danbooru.donmai.us/posts.json?limit=1&random=true&tags=rating%3aexplicit+$tags" | grep -oPm1 "(?<=file_url=\")[^\"]+"
-			elif [ "$lewd" = 1 ]; then
-				image_url=curl -s "https://danbooru.donmai.us/posts.json?limit=1&random=true&tags=rating%3alewd+$tags" | grep -oPm1 "(?<=file_url=\")[^\"]+"
-			else
-				image_url=curl -s "https://danbooru.donmai.us/posts.json?limit=1&random=true&tags=rating%3asafe+$tags" | grep -oPm1 "(?<=file_url=\")[^\"]+"
+			if [ "$tags" = "-guro -scat -furry" ]; then
+				tags=""
+			elif [ "$tags" != "" ]; then
+				if [[ $(echo "$tags" | wc -w) -gt 1 ]]; then
+					echo "Sorry, only one tag is allowed for danbooru"
+					exit 1
+				fi
+			fi
+			getdanbooru
+		fi
+		;;
+	"nhentai")
+		if [ "$id" != 0 ]; then
+			nh_cookie="cf_clearance=p4MPloDyhtYGmXdO8ekOHNH6QhOgl.8nmGHCOMU0p2Q-1693973480-0-1-dddaacb4.62abc302.8adbf354-160.0.0; csrftoken=FnhZBF61PWP9RM8gtin0BPKVmOrp85eUhN248wLWn55i5R6PaRuWWNWwJUsMVfyJ"
+			# Try connecting to wholesomelist.com and search
+			json_full=$(curl -s "https://wholesomelist.com/api/check?code=$id")
+			# If .result is false
+			if [ "$(echo "$json_full" | jq -r '.result')" = "false" ]; then
+				if [ "$nh_cookie" = "" ]; then
+					echo "ID is not wholesome. "
+					echo "To see cursed content, see \`hentaifetch -h cookie\` for more info"
+					exit 1
+				else
+					json_full=$(curl -s -H "Cookie: $nh_cookie" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0" -H "Accept: application/json, text/javascript, */*; q=0.01" -H "Accept-Language: en-US,en;q=0.5" --compressed -H "X-Requested-With: XMLHttpRequest" -H "Connection: keep-alive" -H "Referer: https://nhentai.net/g/$id/" -H "Pragma: no-cache" -H "Cache-Control: no-cache" -H "TE: Trailers" -H "Sec-GPC: 1" -H "DNT: 1" -H "Sec-Fetch-Dest: empty" -H "Sec-Fetch-Mode: cors" -H "Sec-Fetch-Site: same-origin" -H "cookie: $nh_cookie" --cookie "$nh_cookie" "https://nhentai.net/api/gallery/$id")
+				fi
 			fi
 		fi
 		;;
 esac
 
+echo "$json_full"
 echo "$image_url"
 echo "$id"
