@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2023-09-15
+
+Finished Danbooru and nhentai support.
+
+### Added
+
+-   Danbooru support.
+    Limit the tags to one
+-   nhentai support.
+    Use wholesomelist.com backend, else use cookies
+-   Return "No results found." if no results are found.
+    Added jq dependency
+-   Reformat code using shfmt
+    Use shell-format and ShellCheck extensions
+
 ## [0.1.1] - 2023-09-10
 
 Finished Gelbooru support.

@@ -4,7 +4,7 @@
 
 # Hentaifetch - Neofetch but with hentai
 # https://github.com/quincynyan/hentaifetch
-# 
+#
 # The GNU General Public License v3.0
 #
 # This file is part of Hentaifetch.
@@ -22,7 +22,7 @@
 # along with Hentaifetch.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-version="0.1.1"
+version="0.1.2"
 
 # Check if neofetch is installed
 if ! command -v neofetch >/dev/null 2>&1; then
@@ -55,10 +55,12 @@ fi
 # tags="-guro -scat -furry"
 # sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
 # # sites=("nhentai") 	# Uncomment this line to only use nhentai
-# nh_cookie=""
+# nh_cookie="" 	# Paste your nhentai cookie here between the quotes
+# user_agent="" 	# Paste your user agent here between the quotes
+# content_type="" 	# Paste your content type here between the quotes, leave blank if you don't know what it is
 
 tmpfile=$(mktemp)
-trap "rm -f $tmpfile" EXIT
+trap 'rm -f $tmpfile' EXIT
 site=""
 explicit=0
 lewd=0
@@ -73,273 +75,264 @@ tags="-guro -scat -furry"
 sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
 site=""
 nh_cookie=""
+user_agent=""
+content_type="application/json"
 
 # Look for config file and load variables from it if it exists
 config_file="$HOME/.config/hentaifetch.conf"
 if [ -f "$config_file" ]; then
+	# shellcheck disable=SC1090
 	. "$config_file"
 else
 	touch "$config_file"
-	echo "explicit=0" >> "$config_file"
-	echo "lewd=0" >> "$config_file"
-	echo "backend=\"w3m\"" >> "$config_file"
-	echo "yoffset=0" >> "$config_file"
-	echo "xoffset=0" >> "$config_file"
-	echo "width=0" >> "$config_file"
-	echo "height=0" >> "$config_file"
-	echo "gap=3" >> "$config_file"
-	echo "id=0" >> "$config_file"
-	echo "tags=\"\"" >> "$config_file"
-	echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\")" >> "$config_file"
-	echo "# sites=(\"nhentai\") # Uncomment this line to only use nhentai" >> "$config_file"
-	echo "nh_cookie=\"\"" >> "$config_file"
+	{
+		echo "explicit=0"
+		echo "lewd=0"
+		echo "backend=\"w3m\""
+		echo "yoffset=0"
+		echo "xoffset=0"
+		echo "width=0"
+		echo "height=0"
+		echo "gap=3"
+		echo "id=0"
+		echo "tags=\"-guro -scat -furry\""
+		echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\")"
+		echo "# sites=(\"nhentai\") # Uncomment this line to only use nhentai"
+		echo "nh_cookie=\"\" # Paste your nhentai cookie here between the quotes"
+		echo "user_agent=\"\" # Paste your user agent here between the quotes"
+		echo "content_type=\"\" # Paste your content type here between the quotes, leave blank if you don't know what it is"
+	} >>"$config_file"
 fi
 
 # Parse arguments
 while [ $# -gt 0 ]; do
 	case "$1" in
-		#if nhentai code (6 digits)
-		[0-9][0-9][0-9][0-9][0-9][0-9])
-			id="$1"
-			site="nhentai"
-			;;
-		# if in sites array
-		"gelbooru"|"danbooru"|"konachan"|"yandere"|"sankaku"|"rule34"|"realbooru"|"xbooru"|"tbib"|"lolibooru"|"idolcomplex"|"anime-pictures"|"zerochan"|"safebooru"|"nekos.life"|"nhentai")
-			site="$1"
-			;;
-		-h|--help|help)
-			# if there is second argument
-			if [ $# -gt 1 ]; then
-				case "$2" in
-					"-h"|"--help"|help)
-						echo "Usage: hentaifetch -h [OPTION]..."
-						echo "Display this help message"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -h"
-						echo "  hentaifetch -h --site"
-						echo ""
-						exit 0
-						;;
-					"-v"|"--version"|version)
-						echo "Usage: hentaifetch -v"
-						echo "Display version info"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -v"
-						echo "  hentaifetch --version"
-						echo ""
-						exit 0
-						;;
-					"-e"|"--explicit")
-						echo "Usage: hentaifetch -e"
-						echo "Enable explicit content"
-						echo "Default: disabled (0)"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -e"
-						echo "  hentaifetch --explicit"
-						echo ""
-						exit 0
-						;;
-					"-l"|"--lewd")
-						echo "Usage: hentaifetch -l"
-						echo "Enable lewd content"
-						echo "Default: disabled (0)"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -l"
-						echo "  hentaifetch --lewd"
-						echo ""
-						exit 0
-						;;
-					"-b"|"--backend")
-						echo "Usage: hentaifetch -b [BACKEND]"
-						echo "Set the backend to use"
-						echo "Default: w3m"
-						echo ""
-						echo "Valid backends:"
-						echo "  w3m"
-						echo "  chafa"
-						echo ""
-						echo "Additional backends: (Needs to be installed manually)"
-						echo "  ascii"
-						echo "  caca"
-						echo "  catimg"
-						echo "  jp2a"
-						echo "  iterm2"
-						echo "  kitty"
-						echo "  off"
-						echo "  sixel"
-						echo "  pot"
-						echo "  pixterm"
-						echo "  termpix"
-						echo "  tycat"
-						echo "  viu"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -b chafa"
-						echo "  hentaifetch --backend w3m"
-						echo ""
-						exit 0
-						;;
-					"-y"|"--yoffset")
-						echo "Usage: hentaifetch -y [YOFFSET]"
-						echo "Set the y offset"
-						echo "How close the image will be to the top edge of the window."
-						echo "Default: 0"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -y 4"
-						echo "  hentaifetch --yoffset 20"
-						echo ""
-						exit 0
-						;;
-					"-x"|"--xoffset")
-						echo "Usage: hentaifetch -x [XOFFSET]"
-						echo "Set the x offset"
-						echo "How close the image will be to the left edge of the window."
-						echo "Default: 0"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -x 4"
-						echo "  hentaifetch --xoffset 20"
-						echo ""
-						exit 0
-						;;
-					"-W"|"--width")
-						echo "Usage: hentaifetch -W [WIDTH]"
-						echo "Set the width"
-						echo "Default: 0 (auto)"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -W 50"
-						echo "  hentaifetch --width 100"
-						echo ""
-						exit 0
-						;;
-					"-H"|"--height")
-						echo "Usage: hentaifetch -H [HEIGHT]"
-						echo "Set the height"
-						echo "Default: 0 (auto)"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -H 50"
-						echo "  hentaifetch --height 100"
-						echo ""
-						exit 0
-						;;
-					"-g"|"--gap")
-						echo "Usage: hentaifetch -g [GAP]"
-						echo "Set the gap"
-						echo "Gap between image and text."
-						echo "Default: 3"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -g 4"
-						echo "  hentaifetch --gap 1"
-						echo ""
-						exit 0
-						;;
-					"-i"|"--id")
-						echo "Usage: hentaifetch -i [ID]"
-						echo "Set the ID"
-						echo "Default: 0 (random from wholesomelist.com)"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -i 177013"
-						echo "  hentaifetch --id 228922"
-						echo ""
-						exit 0
-						;;
-					"-t"|"--tags")
-						echo "Usage: hentaifetch -t [TAGS]"
-						echo "Set the tags"
-						echo "Default: \"-guro -scat -furry\""
-						echo "See https://gelbooru.com/index.php?page=wiki&s=view&id=25921 for more info"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -t \"1boy multiple-girls\""
-						echo "  hentaifetch --tags \"-2boys 1girl -feet ~astolfo neko*\""
-						echo ""
-						exit 0
-						;;
-					"-s"|"--site")
-						echo "Usage: hentaifetch -s [SITE]"
-						echo "Set the site"
-						echo "Default: random from sites array"
-						echo ""
-						echo "Valid sites:"
-						echo "  gelbooru"
-						echo "  danbooru"
-						echo "  konachan"
-						echo "  yandere"
-						echo "  sankaku"
-						echo "  rule34"
-						echo "  realbooru"
-						echo "  xbooru"
-						echo "  tbib"
-						echo "  lolibooru"
-						echo "  idolcomplex"
-						echo "  anime-pictures"
-						echo "  zerochan"
-						echo "  safebooru"
-						echo "  nekos.life"
-						echo "  nhentai"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch -s gelbooru"
-						echo "  hentaifetch --site danbooru"
-						echo "  hentaifetch safebooru"
-						echo "  hentaifetch 292495"
-						echo ""
-						exit 0
-						;;
-					"cookie")
-						echo "NHentai has a new barrier by Cloudflare that throws a 403 error, which curl can't pass due to the javascript challenge (unless you pass -FsSL)."
-						echo "One way to bypass this is to use a cookie from a browser that has already passed the challenge."
-						echo "To get the cookie, open nhentai.net in your browser, open the developer tools, go to the network tab, and reload the page."
-						echo "Click on the first request (200 GET nhentai.net /), and copy the value of the cookie header (which is in the Request Headers section at the bottom)."
-						echo "Then, edit the config file and paste the value into nh_cookie."
-						echo ""
-						echo "1. Open nhentai.net in your browser"
-						echo "2. Open the developer tools (F12)"
-						echo "3. Go to the network tab"
-						echo "4. Reload the page"
-						echo "5. Click on the first request (Usually 200 GET nhentai.net /)"
-						echo "6. Scroll down to the request headers"
-						echo "7. Copy the Cookie value"
-						echo "8. Edit the config file and paste the value into nh_cookie"
-						echo ""
-						exit 0
-						;;
-					*)
-						echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
-						echo "Hentaifetch - Neofetch but with hentai"
-						echo ""
-						echo "  -h, --help            Display this help message"
-						echo "  -v, --version         Display version info"
-						echo "  -e, --explicit        Enable explicit content"
-						echo "  -l, --lewd            Enable lewd content"
-						echo "  -b, --backend BACKEND Set the backend to use"
-						echo "  -y, --yoffset YOFFSET Set the y offset"
-						echo "  -x, --xoffset XOFFSET Set the x offset"
-						echo "  -W, --width WIDTH     Set the width"
-						echo "  -H, --height HEIGHT   Set the height"
-						echo "  -g, --gap GAP         Set the gap"
-						echo "  -i, --id ID           Set the ID"
-						echo "  -t, --tags TAGS       Set the tags"
-						echo "  -s, --site SITE     Set the site"
-						echo ""
-						echo "Examples:"
-						echo "  hentaifetch 177013"
-						echo "  hentaifetch gelbooru -e -l"
-						echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
-						echo ""
-						exit 0
-						;;
-				esac
-			else
+	#if nhentai code (6 digits)
+	[0-9][0-9][0-9][0-9][0-9][0-9])
+		id="$1"
+		site="nhentai"
+		;;
+	# if in sites array
+	"gelbooru" | "danbooru" | "konachan" | "yandere" | "sankaku" | "rule34" | "realbooru" | "xbooru" | "tbib" | "lolibooru" | "idolcomplex" | "anime-pictures" | "zerochan" | "safebooru" | "nekos.life" | "nhentai")
+		site="$1"
+		;;
+	-h | --help | help)
+		# if there is second argument
+		if [ $# -gt 1 ]; then
+			case "$2" in
+			"-h" | "--help" | help)
+				echo "Usage: hentaifetch -h [OPTION]..."
+				echo "Display this help message"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -h"
+				echo "  hentaifetch -h --site"
+				echo ""
+				exit 0
+				;;
+			"-v" | "--version" | version)
+				echo "Usage: hentaifetch -v"
+				echo "Display version info"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -v"
+				echo "  hentaifetch --version"
+				echo ""
+				exit 0
+				;;
+			"-e" | "--explicit")
+				echo "Usage: hentaifetch -e"
+				echo "Enable explicit content"
+				echo "Default: disabled (0)"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -e"
+				echo "  hentaifetch --explicit"
+				echo ""
+				exit 0
+				;;
+			"-l" | "--lewd")
+				echo "Usage: hentaifetch -l"
+				echo "Enable lewd content"
+				echo "Default: disabled (0)"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -l"
+				echo "  hentaifetch --lewd"
+				echo ""
+				exit 0
+				;;
+			"-b" | "--backend")
+				echo "Usage: hentaifetch -b [BACKEND]"
+				echo "Set the backend to use"
+				echo "Default: w3m"
+				echo ""
+				echo "Valid backends:"
+				echo "  w3m"
+				echo "  chafa"
+				echo ""
+				echo "Additional backends: (Needs to be installed manually)"
+				echo "  ascii"
+				echo "  caca"
+				echo "  catimg"
+				echo "  jp2a"
+				echo "  iterm2"
+				echo "  kitty"
+				echo "  off"
+				echo "  sixel"
+				echo "  pot"
+				echo "  pixterm"
+				echo "  termpix"
+				echo "  tycat"
+				echo "  viu"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -b chafa"
+				echo "  hentaifetch --backend w3m"
+				echo ""
+				exit 0
+				;;
+			"-y" | "--yoffset")
+				echo "Usage: hentaifetch -y [YOFFSET]"
+				echo "Set the y offset"
+				echo "How close the image will be to the top edge of the window."
+				echo "Default: 0"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -y 4"
+				echo "  hentaifetch --yoffset 20"
+				echo ""
+				exit 0
+				;;
+			"-x" | "--xoffset")
+				echo "Usage: hentaifetch -x [XOFFSET]"
+				echo "Set the x offset"
+				echo "How close the image will be to the left edge of the window."
+				echo "Default: 0"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -x 4"
+				echo "  hentaifetch --xoffset 20"
+				echo ""
+				exit 0
+				;;
+			"-W" | "--width")
+				echo "Usage: hentaifetch -W [WIDTH]"
+				echo "Set the width"
+				echo "Default: 0 (auto)"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -W 50"
+				echo "  hentaifetch --width 100"
+				echo ""
+				exit 0
+				;;
+			"-H" | "--height")
+				echo "Usage: hentaifetch -H [HEIGHT]"
+				echo "Set the height"
+				echo "Default: 0 (auto)"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -H 50"
+				echo "  hentaifetch --height 100"
+				echo ""
+				exit 0
+				;;
+			"-g" | "--gap")
+				echo "Usage: hentaifetch -g [GAP]"
+				echo "Set the gap"
+				echo "Gap between image and text."
+				echo "Default: 3"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -g 4"
+				echo "  hentaifetch --gap 1"
+				echo ""
+				exit 0
+				;;
+			"-i" | "--id")
+				echo "Usage: hentaifetch -i [ID]"
+				echo "Set the ID"
+				echo "Default: 0 (random from wholesomelist.com)"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -i 177013"
+				echo "  hentaifetch --id 228922"
+				echo ""
+				exit 0
+				;;
+			"-t" | "--tags")
+				echo "Usage: hentaifetch -t [TAGS]"
+				echo "Set the tags"
+				echo "Default: \"-guro -scat -furry\""
+				echo "See https://gelbooru.com/index.php?page=wiki&s=view&id=25921 for more info"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -t \"1boy multiple-girls\""
+				echo "  hentaifetch --tags \"-2boys 1girl -feet ~astolfo neko*\""
+				echo ""
+				exit 0
+				;;
+			"-s" | "--site")
+				echo "Usage: hentaifetch -s [SITE]"
+				echo "Set the site"
+				echo "Default: random from sites array"
+				echo ""
+				echo "Valid sites:"
+				echo "  gelbooru"
+				echo "  danbooru"
+				echo "  konachan"
+				echo "  yandere"
+				echo "  sankaku"
+				echo "  rule34"
+				echo "  realbooru"
+				echo "  xbooru"
+				echo "  tbib"
+				echo "  lolibooru"
+				echo "  idolcomplex"
+				echo "  anime-pictures"
+				echo "  zerochan"
+				echo "  safebooru"
+				echo "  nekos.life"
+				echo "  nhentai"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -s gelbooru"
+				echo "  hentaifetch --site danbooru"
+				echo "  hentaifetch safebooru"
+				echo "  hentaifetch 292495"
+				echo ""
+				exit 0
+				;;
+			"cookie")
+				echo "NHentai has a new barrier by Cloudflare that throws a 403 error, which curl can't pass due to the javascript challenge (unless you pass -FsSL)."
+				echo "One way to bypass this is to use a cookie from a browser that has already passed the challenge."
+				echo "To get the cookie, open nhentai.net in your browser, open the developer tools, go to the network tab, and reload the page."
+				echo "Click on the first request (200 GET nhentai.net /), and copy the value of the cookie header (which is in the Request Headers section at the bottom)."
+				echo "Also copy the User-Agent value (which is also in the Request Headers section) and Content-type if it exists."
+				echo "(If you can't find Content-type, just copy the Cookie value and the User-Agent value)"
+				echo "The User-Agent value looks something like this:"
+				echo "Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0"
+				echo "or"
+				echo "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+				echo "Just make sure you copy the whole thing. The entire User-Agent, and also the entire Cookie."
+				echo "Then, edit the config file (in ~/.config/hentaifetch.conf) and paste the values into nh_cookie and user_agent respectively."
+				echo ""
+				echo "In summary:"
+				echo "1. Open nhentai.net in your browser"
+				echo "2. Open the developer tools (F12)"
+				echo "3. Go to the network tab"
+				echo "4. Reload the page"
+				echo "5. Click on the first request (Usually 200 GET nhentai.net /)"
+				echo "6. Scroll down to the request headers"
+				echo "7. Copy the Cookie value"
+				echo "8. Edit the config file (in ~/.config/hentaifetch.conf) and paste the value into nh_cookie"
+				echo "9. Copy the User-Agent value"
+				echo "10. Edit the config file and paste the value into user_agent"
+				echo ""
+				exit 0
+				;;
+			*)
 				echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
 				echo "Hentaifetch - Neofetch but with hentai"
 				echo ""
@@ -363,55 +356,9 @@ while [ $# -gt 0 ]; do
 				echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
 				echo ""
 				exit 0
-			fi
-			;;
-		-v|--version|version)
-			echo "Hentaifetch $version"
-			exit 0
-			;;
-		-e|--explicit)
-			explicit=1
-			;;
-		-l|--lewd)
-			lewd=1
-			;;
-		-b|--backend)
-			shift
-			backend="$1"
-			;;
-		-y|--yoffset)
-			shift
-			yoffset="$1"
-			;;
-		-x|--xoffset)
-			shift
-			xoffset="$1"
-			;;
-		-W|--width)
-			shift
-			width="$1"
-			;;
-		-H|--height)
-			shift
-			height="$1"
-			;;
-		-g|--gap)
-			shift
-			gap="$1"
-			;;
-		-i|--id)
-			shift
-			id="$1"
-			;;
-		-t|--tags)
-			shift
-			tags="$1"
-			;;
-		-s|--site)
-			shift
-			site="$1"
-			;;
-		*)
+				;;
+			esac
+		else
 			echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
 			echo "Hentaifetch - Neofetch but with hentai"
 			echo ""
@@ -435,7 +382,79 @@ while [ $# -gt 0 ]; do
 			echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
 			echo ""
 			exit 0
-			;;
+		fi
+		;;
+	-v | --version | version)
+		echo "Hentaifetch $version"
+		exit 0
+		;;
+	-e | --explicit)
+		explicit=1
+		;;
+	-l | --lewd)
+		lewd=1
+		;;
+	-b | --backend)
+		shift
+		backend="$1"
+		;;
+	-y | --yoffset)
+		shift
+		yoffset="$1"
+		;;
+	-x | --xoffset)
+		shift
+		xoffset="$1"
+		;;
+	-W | --width)
+		shift
+		width="$1"
+		;;
+	-H | --height)
+		shift
+		height="$1"
+		;;
+	-g | --gap)
+		shift
+		gap="$1"
+		;;
+	-i | --id)
+		shift
+		id="$1"
+		;;
+	-t | --tags)
+		shift
+		tags="$1"
+		;;
+	-s | --site)
+		shift
+		site="$1"
+		;;
+	*)
+		echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
+		echo "Hentaifetch - Neofetch but with hentai"
+		echo ""
+		echo "  -h, --help            Display this help message"
+		echo "  -v, --version         Display version info"
+		echo "  -e, --explicit        Enable explicit content"
+		echo "  -l, --lewd            Enable lewd content"
+		echo "  -b, --backend BACKEND Set the backend to use"
+		echo "  -y, --yoffset YOFFSET Set the y offset"
+		echo "  -x, --xoffset XOFFSET Set the x offset"
+		echo "  -W, --width WIDTH     Set the width"
+		echo "  -H, --height HEIGHT   Set the height"
+		echo "  -g, --gap GAP         Set the gap"
+		echo "  -i, --id ID           Set the ID"
+		echo "  -t, --tags TAGS       Set the tags"
+		echo "  -s, --site SITE     Set the site"
+		echo ""
+		echo "Examples:"
+		echo "  hentaifetch 177013"
+		echo "  hentaifetch gelbooru -e -l"
+		echo "  hentaifetch -b chafa -y 1 -x 1 -W 50 -H 50"
+		echo ""
+		exit 0
+		;;
 	esac
 	shift
 done
@@ -542,63 +561,93 @@ getdanbooru() {
 }
 
 case "$site" in
-	"gelbooru")
-		if [ "$id" != 0 ]; then
-			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&id=$id")
-		else
-			tags=$(echo "$tags" | sed 's/ /+/g')
-			if [ "$explicit" = 1 ]; then
-				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3aexplicit+sort%3arandom+$tags")
-			elif [ "$lewd" = 1 ]; then
-				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3alewd+sort%3arandom+$tags")
-			else
-				xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3asafe+sort%3arandom+$tags")
-			fi
-			id=$(echo "$xml_full" | grep -oPm1 '<id>\K[^<]+')
+"gelbooru")
+	if [ "$id" != 0 ]; then
+		xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&id=$id")
+		if [ "$(echo "$xml_full" | grep -oPm1 '<id>\K[^<]+')" = "" ]; then
+			echo "Error: ID not found"
+			exit 1
 		fi
-		image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
+	else
+		tags="${tags// /+}"
+		if [ "$explicit" = 1 ]; then
+			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3aexplicit+sort%3arandom+$tags")
+		elif [ "$lewd" = 1 ]; then
+			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3alewd+sort%3arandom+$tags")
+		else
+			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3asafe+sort%3arandom+$tags")
+		fi
+		id=$(echo "$xml_full" | grep -oPm1 '<id>\K[^<]+')
+	fi
+	image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
+	if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
+		image_url=$(echo "$xml_full" | grep -oPm1 '<preview_url>\K[^<]+')
+	fi
+	;;
+"danbooru")
+	if [ "$id" != 0 ]; then
+		json_full=$(curl -s "https://danbooru.donmai.us/posts/$id.json")
+		if [ "$(echo "$json_full" | jq -r '.success')" = "false" ]; then
+			echo "Error: ID not found"
+			exit 1
+		fi
+		image_url=$(echo "$json_full" | jq -r '.[0].file_url')
 		if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
-				image_url=$(echo "$xml_full" | grep -oPm1 '<preview_url>\K[^<]+')
+			image_url=$(echo "$json_full" | jq -r '.[0].preview_file_url')
 		fi
-		;;
-	"danbooru")
-		if [ "$id" != 0 ]; then
-			json_full=$(curl -s "https://danbooru.donmai.us/posts/$id.json")
-			image_url=$(echo "$json_full" | jq -r '.[0].file_url')
-			if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
-				image_url=$(echo "$json_full" | jq -r '.[0].preview_file_url')
+	else
+		if [ "$tags" = "-guro -scat -furry" ]; then
+			tags=""
+		elif [ "$tags" != "" ]; then
+			if [[ $(echo "$tags" | wc -w) -gt 1 ]]; then
+				echo "Sorry, only one tag is allowed for danbooru"
+				exit 1
+			fi
+		fi
+		getdanbooru
+	fi
+	;;
+"nhentai")
+	if [ "$id" != 0 ]; then
+		# Try connecting to wholesomelist.com and search
+		json_full=$(curl -s "https://wholesomelist.com/api/check?code=$id")
+		# If .result is false
+		if [ "$(echo "$json_full" | jq -r '.result')" = "false" ]; then
+			if [ "$nh_cookie" = "" ]; then
+				echo "ID is not wholesome. "
+				echo "To see cursed content, see \`hentaifetch -h cookie\` for more info"
+				exit 1
+			else
+				json_full=$(curl -s "https://nhentai.net/api/gallery/$id" -H "Cookie: $nh_cookie" -H "User-Agent: $user_agent" -H "Content-Type: $content_type")
+				if [[ "$json_full" == *"Just a moment..."* ]]; then
+					echo "Error: Cloudflare is blocking you"
+					echo "See \`hentaifetch -h cookie\` for more info"
+					echo "If you have already set the cookie, try again in a few minutes"
+					echo "Note: cookie or user agent may be invalid"
+					exit 1
+				elif [[ "$json_full" =~ "429 Too Many Requests" ]]; then
+					echo "Error: Too many requests"
+					echo "Try again in a few minutes"
+					echo "Note: cookie or user agent may be invalid"
+					exit 1
+				elif [[ "$json_full" =~ "404 - Not Found" ]] || [[ "$(echo "$json_full" | jq -r '.error')" = "does not exist" ]]; then
+					echo "Error: ID not found"
+					exit 1
+				fi
+				image_id=$(echo "$json_full" | jq -r '.media_id')
+				if [ "$(echo "$json_full" | jq -r '.images.cover.t')" = "j" ]; then
+					image_format="jpg"
+				else
+					image_format="png"
+				fi
+				image_url="https://t.nhentai.net/galleries/$image_id/cover.$image_format"
 			fi
 		else
-			if [ "$tags" = "-guro -scat -furry" ]; then
-				tags=""
-			elif [ "$tags" != "" ]; then
-				if [[ $(echo "$tags" | wc -w) -gt 1 ]]; then
-					echo "Sorry, only one tag is allowed for danbooru"
-					exit 1
-				fi
-			fi
-			getdanbooru
+			image_url=$(echo "$json_full" | jq -r '.entry.image')
 		fi
-		;;
-	"nhentai")
-		if [ "$id" != 0 ]; then
-			nh_cookie="cf_clearance=p4MPloDyhtYGmXdO8ekOHNH6QhOgl.8nmGHCOMU0p2Q-1693973480-0-1-dddaacb4.62abc302.8adbf354-160.0.0; csrftoken=FnhZBF61PWP9RM8gtin0BPKVmOrp85eUhN248wLWn55i5R6PaRuWWNWwJUsMVfyJ"
-			# Try connecting to wholesomelist.com and search
-			json_full=$(curl -s "https://wholesomelist.com/api/check?code=$id")
-			# If .result is false
-			if [ "$(echo "$json_full" | jq -r '.result')" = "false" ]; then
-				if [ "$nh_cookie" = "" ]; then
-					echo "ID is not wholesome. "
-					echo "To see cursed content, see \`hentaifetch -h cookie\` for more info"
-					exit 1
-				else
-					json_full=$(curl -s -H "Cookie: $nh_cookie" -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0" -H "Accept: application/json, text/javascript, */*; q=0.01" -H "Accept-Language: en-US,en;q=0.5" --compressed -H "X-Requested-With: XMLHttpRequest" -H "Connection: keep-alive" -H "Referer: https://nhentai.net/g/$id/" -H "Pragma: no-cache" -H "Cache-Control: no-cache" -H "TE: Trailers" -H "Sec-GPC: 1" -H "DNT: 1" -H "Sec-Fetch-Dest: empty" -H "Sec-Fetch-Mode: cors" -H "Sec-Fetch-Site: same-origin" -H "cookie: $nh_cookie" --cookie "$nh_cookie" "https://nhentai.net/api/gallery/$id")
-				fi
-			fi
-		fi
-		;;
+	fi
+	;;
 esac
 
-echo "$json_full"
 echo "$image_url"
 echo "$id"

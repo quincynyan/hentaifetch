@@ -1,26 +1,26 @@
 # Maintainer: Quincy Nyan <quinc@nekonyan.fun>
 pkgname='hentaifetch'
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="Neofetch but with hentai"
 arch=('x86_64')
 url="https://github.com/quincynyan/hentaifetch"
 license=('GPL')
-depends=('neofetch' 'w3m' 'chafa' 'jq')
+depends=('neofetch' 'w3m' 'chafa' 'jq' 'curl' 'bash' 'sed' 'grep')
 makedepends=('git')
 checkdepends=()
-optdepends=('imagemagick: Thumbnail creation' 
-			'w3m-img: sometimes bundled together with w3m' 
-			'iTerm2: Image support is built into Terminology, iTerm2 and kitty, and doesnt require w3m-img.' 
-			'Terminology: Image support is built into Terminology, iTerm2 and kitty, and doesnt require w3m-img.' 
-			'kitty: Image support is built into Terminology, iTerm2 and kitty, and doesnt require w3m-img.' 
-			'libsixel: Image support for kitty' 
-			'termpix: Image support for kitty' 
-			'pixterm: Image support for kitty' 
-			'catimg: Image support for kitty' 
-			'jp2a: Image support for kitty' 
-			'caca-utils: Image support for kitty' 
-			'libcaca: Image support for kitty')
+optdepends=('imagemagick: Thumbnail creation'
+	'w3m-img: sometimes bundled together with w3m'
+	'iTerm2: Image support is built into Terminology, iTerm2 and kitty, and doesnt require w3m-img.'
+	'Terminology: Image support is built into Terminology, iTerm2 and kitty, and doesnt require w3m-img.'
+	'kitty: Image support is built into Terminology, iTerm2 and kitty, and doesnt require w3m-img.'
+	'libsixel: Image support for kitty'
+	'termpix: Image support for kitty'
+	'pixterm: Image support for kitty'
+	'catimg: Image support for kitty'
+	'jp2a: Image support for kitty'
+	'caca-utils: Image support for kitty'
+	'libcaca: Image support for kitty')
 provides=('hentaifetch')
 conflicts=()
 changelog=CHANGELOG.md
