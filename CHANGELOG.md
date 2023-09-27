@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Beta]
+
+## [0.2.1] - 2023-09-27
+
+Cleaned up a little bit of everything, and completed nhentai support.
+
+### Added
+
+-   Changed help command for cookies
+-   Consider invalid ID
+-   Get random ID from wholesomelist.com
+-   Render image in neofetch
+
 ## [Unreleased]
 
 ## [0.1.2] - 2023-09-15

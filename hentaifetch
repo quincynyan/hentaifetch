@@ -22,7 +22,7 @@
 # along with Hentaifetch.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-version="0.1.2"
+version="0.2.1"
 
 # Check if neofetch is installed
 if ! command -v neofetch >/dev/null 2>&1; then
@@ -59,8 +59,6 @@ fi
 # user_agent="" 	# Paste your user agent here between the quotes
 # content_type="" 	# Paste your content type here between the quotes, leave blank if you don't know what it is
 
-tmpfile=$(mktemp)
-trap 'rm -f $tmpfile' EXIT
 site=""
 explicit=0
 lewd=0
@@ -330,6 +328,8 @@ while [ $# -gt 0 ]; do
 				echo "9. Copy the User-Agent value"
 				echo "10. Edit the config file and paste the value into user_agent"
 				echo ""
+				echo "nhentai cookies only last for 7 days, you need to update them once they expire"
+				echo ""
 				exit 0
 				;;
 			*)
@@ -578,6 +578,10 @@ case "$site" in
 			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3asafe+sort%3arandom+$tags")
 		fi
 		id=$(echo "$xml_full" | grep -oPm1 '<id>\K[^<]+')
+		if [ "$id" = "" ]; then
+			echo "Error: no image found"
+			exit 1
+		fi
 	fi
 	image_url=$(echo "$xml_full" | grep -oPm1 '<file_url>\K[^<]+')
 	if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
@@ -624,6 +628,7 @@ case "$site" in
 					echo "See \`hentaifetch -h cookie\` for more info"
 					echo "If you have already set the cookie, try again in a few minutes"
 					echo "Note: cookie or user agent may be invalid"
+					echo "nhentai cookies only last for 7 days, you need to update them once they expire"
 					exit 1
 				elif [[ "$json_full" =~ "429 Too Many Requests" ]]; then
 					echo "Error: Too many requests"
@@ -645,9 +650,44 @@ case "$site" in
 		else
 			image_url=$(echo "$json_full" | jq -r '.entry.image')
 		fi
+	else
+		json_full=$(curl -sl "https://wholesomelist.com/api/random")
+		image_url=$(echo "$json_full" | jq -r '.entry.image')
+		if [ "$(echo "$json_full" | jq -r '.entry.nh')" = "null" ]; then
+			id=$(echo "$json_full" | jq -r '.entry.eh' | grep -oPm1 '(?<=/g/)\d+')
+			id="ehentai ID: $id"
+		else
+			id=$(echo "$json_full" | jq -r '.entry.nh' | grep -oPm1 '(?<=/g/)\d+')
+		fi
 	fi
 	;;
 esac
 
 echo "$image_url"
 echo "$id"
+
+# Check if image_url is empty
+if [ "$image_url" = "" ]; then
+	echo "Error: no image found"
+	echo "Note: might be slow connection problems. If the error persists, try again in a few minutes"
+	exit 1
+fi
+
+# Check if image_url is valid
+http_status_code=$(curl -s -o /dev/null -w "%{http_code}" "$image_url")
+
+if ! [ "$http_status_code" -eq 200 ]; then
+	echo "Image URL is not valid (HTTP status code: $http_status_code)"
+	echo "Note: might be slow connection problems. If the error persists, try again in a few minutes"
+	exit 1
+fi
+
+tmpfile=$(mktemp)
+trap 'rm -f $tmpfile' EXIT
+format=$(echo "$image_url" | grep -oPm1 '\.\K[^.]+$')
+
+echo "$format"
+
+curl -s "$image_url" >"$tmpfile.$format"
+
+neofetch --chafa "$tmpfile.$format"
