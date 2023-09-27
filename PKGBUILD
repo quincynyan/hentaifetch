@@ -1,6 +1,6 @@
 # Maintainer: Quincy Nyan <quinc@nekonyan.fun>
 pkgname='hentaifetch'
-pkgver=0.2.1
+pkgver=0.2.2
 pkgrel=1
 pkgdesc="Neofetch but with hentai"
 arch=('x86_64')

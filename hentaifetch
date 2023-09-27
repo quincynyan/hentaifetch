@@ -22,7 +22,7 @@
 # along with Hentaifetch.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-version="0.2.1"
+version="0.2.2"
 
 # Check if neofetch is installed
 if ! command -v neofetch >/dev/null 2>&1; then
@@ -560,6 +560,8 @@ getdanbooru() {
 	fi
 }
 
+echo "Fetching image from $site..."
+
 case "$site" in
 "gelbooru")
 	if [ "$id" != 0 ]; then
@@ -573,7 +575,7 @@ case "$site" in
 		if [ "$explicit" = 1 ]; then
 			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3aexplicit+sort%3arandom+$tags")
 		elif [ "$lewd" = 1 ]; then
-			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3alewd+sort%3arandom+$tags")
+			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3aquestionable+sort%3arandom+$tags")
 		else
 			xml_full=$(curl -s "https://gelbooru.com/index.php?page=dapi&s=post&q=index&limit=1&tags=rating%3asafe+sort%3arandom+$tags")
 		fi
@@ -654,8 +656,21 @@ case "$site" in
 		json_full=$(curl -sl "https://wholesomelist.com/api/random")
 		image_url=$(echo "$json_full" | jq -r '.entry.image')
 		if [ "$(echo "$json_full" | jq -r '.entry.nh')" = "null" ]; then
-			id=$(echo "$json_full" | jq -r '.entry.eh' | grep -oPm1 '(?<=/g/)\d+')
-			id="ehentai ID: $id"
+			if [ "$(echo "$json_full" | jq -r '.entry.eh')" = "null" ]; then
+				if [ "$(echo "$json_full" | jq -r '.entry.im')" = "null" ]; then
+					id=$(echo "$json_full" | jq -r '.entry.hm' | grep -oPm1 '(?<=/shop/)\w+')
+					id="hmarket.io ID: $id"
+					site="hmarket.io"
+				else
+					id=$(echo "$json_full" | jq -r '.entry.im' | grep -oPm1 '(?<=/p/)\w+')
+					id="imgchest ID: $id"
+					site="imgchest.com"
+				fi
+			else
+				id=$(echo "$json_full" | jq -r '.entry.eh' | grep -oPm1 '(?<=/g/)\d+')
+				id="e-hentai ID: $id"
+				site="e-hentai.org"
+			fi
 		else
 			id=$(echo "$json_full" | jq -r '.entry.nh' | grep -oPm1 '(?<=/g/)\d+')
 		fi
@@ -663,8 +678,11 @@ case "$site" in
 	;;
 esac
 
-echo "$image_url"
-echo "$id"
+echo "Downloading image..."
+
+# echo "$json_full" # Debug
+# echo "$image_url"
+# echo "$id"
 
 # Check if image_url is empty
 if [ "$image_url" = "" ]; then
@@ -686,8 +704,10 @@ tmpfile=$(mktemp)
 trap 'rm -f $tmpfile' EXIT
 format=$(echo "$image_url" | grep -oPm1 '\.\K[^.]+$')
 
-echo "$format"
+# echo "$format" # Debug
 
 curl -s "$image_url" >"$tmpfile.$format"
 
 neofetch --chafa "$tmpfile.$format"
+echo "ID: $id"
+echo "From - $site"

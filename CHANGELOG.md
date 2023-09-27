@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Beta]
 
+## [0.2.2] - 2023-09-27
+
+### Added
+
+-   Cleaned up a few things
+    lewd -> questionable
+-   Add loading text
+    remove debug logs
+-   Support for e-hentai, imgchest, and hmarket.io
+    add ID information
+
 ## [0.2.1] - 2023-09-27
 
 Cleaned up a little bit of everything, and completed nhentai support.
