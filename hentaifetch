@@ -216,7 +216,7 @@ while [ $# -gt 0 ]; do
 				;;
 			"-W" | "--width")
 				echo "Usage: hentaifetch -W [WIDTH]"
-				echo "Set the width"
+				echo "Set the width in percentage"
 				echo "Default: 0 (auto)"
 				echo ""
 				echo "Examples:"
@@ -227,7 +227,7 @@ while [ $# -gt 0 ]; do
 				;;
 			"-H" | "--height")
 				echo "Usage: hentaifetch -H [HEIGHT]"
-				echo "Set the height"
+				echo "Set the height in percentage"
 				echo "Default: 0 (auto)"
 				echo ""
 				echo "Examples:"
@@ -708,6 +708,129 @@ format=$(echo "$image_url" | grep -oPm1 '\.\K[^.]+$')
 
 curl -s "$image_url" >"$tmpfile.$format"
 
-neofetch --chafa "$tmpfile.$format"
-echo "ID: $id"
-echo "From - $site"
+read -r rows columns <<<"$(stty size)"
+get_window_size() {
+	# This functions gets the current window size in
+	# pixels.
+	#
+	# We first try to use the escape sequence "\033[14t"
+	# to get the terminal window size in pixels. If this
+	# fails we then fallback to using "xdotool" or other
+	# programs.
+
+	# Tmux has a special way of reading escape sequences
+	# so we have to use a slightly different sequence to
+	# get the terminal size.
+	if [[ "$backend" == "tycat" ]]; then
+		printf '%b' '\e}qs\000'
+
+	elif [[ -z $VTE_VERSION ]]; then
+		case ${TMUX:-null} in
+		"null") printf '%b' '\e[14t' ;;
+		*) printf '%b' '\ePtmux;\e\e[14t\e\\ ' ;;
+		esac
+	fi
+
+	# The escape codes above print the desired output as
+	# user input so we have to use read to store the out
+	# -put as a variable.
+	# The 1 second timeout is required for older bash
+	#
+	# False positive.
+	# shellcheck disable=2141
+	case $bash_version in
+	4 | 5) IFS=';t' read -d t -t 0.05 -sra term_size ;;
+	*) IFS=';t' read -d t -t 1 -sra term_size ;;
+	esac
+	unset IFS
+
+	# Split the string into height/width.
+	if [[ "$image_backend" == "tycat" ]]; then
+		term_width="$((term_size[2] * term_size[0]))"
+		term_height="$((term_size[3] * term_size[1]))"
+
+	else
+		term_height="${term_size[1]}"
+		term_width="${term_size[2]}"
+	fi
+
+	# Get terminal width/height.
+	if (("${term_width:-0}" < 50)) && [[ "$DISPLAY" && $os != "Mac OS X" && $os != "macOS" ]]; then
+		if type -p xdotool &>/dev/null; then
+			IFS=$'\n' read -d "" -ra win \
+				<<<"$(xdotool getactivewindow getwindowgeometry --shell %1)"
+			term_width="${win[3]/WIDTH=/}"
+			term_height="${win[4]/HEIGHT=/}"
+
+		elif type -p xwininfo &>/dev/null; then
+			# Get the focused window's ID.
+			if type -p xdo &>/dev/null; then
+				current_window="$(xdo id)"
+
+			elif type -p xprop &>/dev/null; then
+				current_window="$(xprop -root _NET_ACTIVE_WINDOW)"
+				current_window="${current_window##* }"
+
+			elif type -p xdpyinfo &>/dev/null; then
+				current_window="$(xdpyinfo | grep -F "focus:")"
+				current_window="${current_window/*window /}"
+				current_window="${current_window/,*/}"
+			fi
+
+			# If the ID was found get the window size.
+			if [[ "$current_window" ]]; then
+				term_size=("$(xwininfo -id "$current_window")")
+				term_width="${term_size[0]#*Width: }"
+				term_width="${term_width/$'\n'*/}"
+				term_height="${term_size[0]/*Height: /}"
+				term_height="${term_height/$'\n'*/}"
+			fi
+		fi
+	fi
+
+	term_width="${term_width:-0}"
+}
+get_window_size
+font_width="$((term_width / columns))"
+font_height="$((term_height / rows))"
+if [ "$width" = 0 ]; then
+	width="$((columns * font_width / 2))"
+else
+	percent="${width/\%/}"
+	width="$((percent * term_width / 100))"
+	(((percent * term_height / 50) < width)) && width="$((percent * term_height / 100))"
+fi
+text_padding="$(((width + xoffset) / font_width + gap))"
+
+# Temporarily append text_padding to neofetch config
+# This is so that neofetch will print the image in the correct position
+neoconf="$HOME/.config/neofetch/config.conf"
+if [ -f "$neoconf" ]; then
+	# if the text_padding does not exist in the config file, append it
+	if ! grep -q "text_padding" "$neoconf"; then
+		sed -i "s/text_padding=.*/#text_padding=$text_padding/" "$neoconf"
+	fi
+	echo "text_padding=$text_padding #appended by hentaifetch" >>"$neoconf"
+else
+	mkdir -p "$HOME/.config/neofetch"
+	touch "$neoconf"
+	echo "text_padding=$text_padding" >>"$neoconf"
+fi
+
+# crop image to square
+read -r og_width og_height <<<"$(identify -format "%w %h" "$tmpfile.$format")"
+((og_height > og_width)) && size="$og_width" || size="$og_height"
+convert -background none "$tmpfile.$format" -gravity center -crop "${size}x${size}+0+0" -scale "${size}x${size}" "$tmpfile.$format"
+
+((lines = (size + yoffset) / font_height + 1))
+
+echo $lines
+
+chafa_output_left="$(mktemp)"
+system_info_right="$(mktemp)"
+
+chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/" >"$chafa_output_left"
+printf '\e[%sA\e[9999999D' "${lines:-0}"
+neofetch --off >"$system_info_right"
+
+paste -d \'\' "$chafa_output_left" "$system_info_right"
