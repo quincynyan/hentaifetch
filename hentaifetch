@@ -708,7 +708,9 @@ format=$(echo "$image_url" | grep -oPm1 '\.\K[^.]+$')
 
 curl -s "$image_url" >"$tmpfile.$format"
 
-read -r rows columns <<<"$(stty size)"
+columns="$(tput cols)"
+bash_version="${BASH_VERSION::1}"
+os="Linux" # Hardcoded for now
 get_window_size() {
 	# This functions gets the current window size in
 	# pixels.
@@ -745,7 +747,7 @@ get_window_size() {
 	unset IFS
 
 	# Split the string into height/width.
-	if [[ "$image_backend" == "tycat" ]]; then
+	if [[ "$backend" == "tycat" ]]; then
 		term_width="$((term_size[2] * term_size[0]))"
 		term_height="$((term_size[3] * term_size[1]))"
 
@@ -792,7 +794,6 @@ get_window_size() {
 }
 get_window_size
 font_width="$((term_width / columns))"
-font_height="$((term_height / rows))"
 if [ "$width" = 0 ]; then
 	width="$((columns * font_width / 2))"
 else
@@ -822,15 +823,9 @@ read -r og_width og_height <<<"$(identify -format "%w %h" "$tmpfile.$format")"
 ((og_height > og_width)) && size="$og_width" || size="$og_height"
 convert -background none "$tmpfile.$format" -gravity center -crop "${size}x${size}+0+0" -scale "${size}x${size}" "$tmpfile.$format"
 
-((lines = (size + yoffset) / font_height + 1))
+((lines = (size + yoffset) + 1))
 
-echo $lines
-
-chafa_output_left="$(mktemp)"
-system_info_right="$(mktemp)"
-
-chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/" >"$chafa_output_left"
+printf '\e[2J\e[H'
+chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/"
 printf '\e[%sA\e[9999999D' "${lines:-0}"
-neofetch --off >"$system_info_right"
-
-paste -d \'\' "$chafa_output_left" "$system_info_right"
+neofetch --off
