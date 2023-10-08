@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Beta]
 
+## [0.3.0] - 2023-10-08
+
+### Added
+
+-   Finished image rendering
+    add image rendering
+-   Implemented neofetch output
+    clear terminal when rendering
+    calculated numbers such as pixels and aspect ratio
+
 ## [0.2.2] - 2023-09-27
 
 ### Added

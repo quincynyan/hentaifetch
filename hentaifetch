@@ -22,7 +22,7 @@
 # along with Hentaifetch.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-version="0.2.2"
+version="0.3.0"
 
 # Check if neofetch is installed
 if ! command -v neofetch >/dev/null 2>&1; then
