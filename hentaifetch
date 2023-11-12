@@ -72,6 +72,7 @@ id=0
 tags="-guro -scat -furry"
 sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
 site=""
+rainbow=0
 nh_cookie=""
 user_agent=""
 content_type="application/json"
@@ -96,6 +97,7 @@ else
 		echo "tags=\"-guro -scat -furry\""
 		echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\")"
 		echo "# sites=(\"nhentai\") # Uncomment this line to only use nhentai"
+		echo "rainbow=0"
 		echo "nh_cookie=\"\" # Paste your nhentai cookie here between the quotes"
 		echo "user_agent=\"\" # Paste your user agent here between the quotes"
 		echo "content_type=\"\" # Paste your content type here between the quotes, leave blank if you don't know what it is"
@@ -302,6 +304,18 @@ while [ $# -gt 0 ]; do
 				echo ""
 				exit 0
 				;;
+			"-r" | "--rainbow")
+				echo "Usage: hentaifetch -r"
+				echo "Enable rainbow mode with lolcat"
+				echo "NOTE: lolcat must be installed"
+				echo "Default: disabled (0)"
+				echo ""
+				echo "Examples:"
+				echo "  hentaifetch -r"
+				echo "  hentaifetch --rainbow"
+				echo ""
+				exit 0
+				;;
 			"cookie")
 				echo "NHentai has a new barrier by Cloudflare that throws a 403 error, which curl can't pass due to the javascript challenge (unless you pass -FsSL)."
 				echo "One way to bypass this is to use a cookie from a browser that has already passed the challenge."
@@ -348,7 +362,8 @@ while [ $# -gt 0 ]; do
 				echo "  -g, --gap GAP         Set the gap"
 				echo "  -i, --id ID           Set the ID"
 				echo "  -t, --tags TAGS       Set the tags"
-				echo "  -s, --site SITE     Set the site"
+				echo "  -s, --site SITE       Set the site"
+				echo "  -r, --rainbow         Enable rainbow mode with lolcat"
 				echo ""
 				echo "Examples:"
 				echo "  hentaifetch 177013"
@@ -374,7 +389,8 @@ while [ $# -gt 0 ]; do
 			echo "  -g, --gap GAP         Set the gap"
 			echo "  -i, --id ID           Set the ID"
 			echo "  -t, --tags TAGS       Set the tags"
-			echo "  -s, --site SITE     Set the site"
+			echo "  -s, --site SITE       Set the site"
+			echo "  -r, --rainbow         Enable rainbow mode with lolcat"
 			echo ""
 			echo "Examples:"
 			echo "  hentaifetch 177013"
@@ -429,6 +445,9 @@ while [ $# -gt 0 ]; do
 	-s | --site)
 		shift
 		site="$1"
+		;;
+	-r | --rainbow)
+		rainbow=1
 		;;
 	*)
 		echo "Usage: hentaifetch [nhentai tag/site] [OPTION]..."
@@ -514,6 +533,11 @@ fi
 # Check if id is a number
 if ! [[ "$id" =~ ^[0-9]+$ ]]; then
 	echo "Error: id must be a number"
+	exit 1
+fi
+
+if [ "$rainbow" = 1 ] && ! command -v lolcat >/dev/null 2>&1; then
+	echo "Error: lolcat is not installed"
 	exit 1
 fi
 
@@ -807,11 +831,18 @@ text_padding="$(((width + xoffset) / font_width + gap))"
 # This is so that neofetch will print the image in the correct position
 neoconf="$HOME/.config/neofetch/config.conf"
 if [ -f "$neoconf" ]; then
-	# if the text_padding does not exist in the config file, append it
-	if ! grep -q "text_padding" "$neoconf"; then
-		sed -i "s/text_padding=.*/#text_padding=$text_padding/" "$neoconf"
+	if grep -q "text_padding" "$neoconf"; then
+		if grep -q "^text_padding=.*# Appended by hentaifetch$" "$neoconf"; then
+			if ! grep -q "^text_padding=$text_padding # Appended by hentaifetch$" "$neoconf"; then
+				sed -i "s/^text_padding=.*/text_padding=$text_padding # Appended by hentaifetch/" "$neoconf"
+			fi
+		else
+			sed -i "s/^text_padding=/# text_padding=/" "$neoconf"
+			echo "text_padding=$text_padding # Appended by hentaifetch" >>"$neoconf"
+		fi
+	else
+		echo "text_padding=$text_padding # Appended by hentaifetch" >>"$neoconf"
 	fi
-	echo "text_padding=$text_padding #appended by hentaifetch" >>"$neoconf"
 else
 	mkdir -p "$HOME/.config/neofetch"
 	touch "$neoconf"
@@ -828,4 +859,9 @@ convert -background none "$tmpfile.$format" -gravity center -crop "${size}x${siz
 printf '\e[2J\e[H'
 chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/"
 printf '\e[%sA\e[9999999D' "${lines:-0}"
-neofetch --off
+# if rainbow mode is enabled, pipe the output to lolcat
+if [ "$rainbow" = 1 ]; then
+	neofetch --off | lolcat
+else
+	neofetch --off
+fi
