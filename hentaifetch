@@ -30,12 +30,6 @@ if ! command -v neofetch >/dev/null 2>&1; then
 	exit 1
 fi
 
-# Check if w3m is installed
-if ! command -v w3m >/dev/null 2>&1; then
-	echo "Error: w3m is not installed"
-	exit 1
-fi
-
 # Check if chafa is installed
 if ! command -v chafa >/dev/null 2>&1; then
 	echo "Error: chafa is not installed"
@@ -45,7 +39,7 @@ fi
 # Default variables
 # explicit=0
 # lewd=0
-# backend="w3m"
+# backend="chafa"
 # yoffset=0
 # xoffset=0
 # width=0
@@ -62,7 +56,7 @@ fi
 site=""
 explicit=0
 lewd=0
-backend="w3m"
+backend="chafa"
 yoffset=0
 xoffset=0
 width=0
@@ -82,12 +76,15 @@ config_file="$HOME/.config/hentaifetch.conf"
 if [ -f "$config_file" ]; then
 	# shellcheck disable=SC1090
 	. "$config_file"
+	if [ "$content_type" = "" ]; then
+		content_type="application/json"
+	fi
 else
 	touch "$config_file"
 	{
 		echo "explicit=0"
 		echo "lewd=0"
-		echo "backend=\"w3m\""
+		echo "backend=\"chafa\""
 		echo "yoffset=0"
 		echo "xoffset=0"
 		echo "width=0"
@@ -165,11 +162,7 @@ while [ $# -gt 0 ]; do
 			"-b" | "--backend")
 				echo "Usage: hentaifetch -b [BACKEND]"
 				echo "Set the backend to use"
-				echo "Default: w3m"
-				echo ""
-				echo "Valid backends:"
-				echo "  w3m"
-				echo "  chafa"
+				echo "Default: chafa"
 				echo ""
 				echo "Additional backends: (Needs to be installed manually)"
 				echo "  ascii"
@@ -185,10 +178,11 @@ while [ $# -gt 0 ]; do
 				echo "  termpix"
 				echo "  tycat"
 				echo "  viu"
+				echo "  w3m"
 				echo ""
 				echo "Examples:"
 				echo "  hentaifetch -b chafa"
-				echo "  hentaifetch --backend w3m"
+				echo "  hentaifetch --backend ascii"
 				echo ""
 				exit 0
 				;;
@@ -465,7 +459,8 @@ while [ $# -gt 0 ]; do
 		echo "  -g, --gap GAP         Set the gap"
 		echo "  -i, --id ID           Set the ID"
 		echo "  -t, --tags TAGS       Set the tags"
-		echo "  -s, --site SITE     Set the site"
+		echo "  -s, --site SITE       Set the site"
+		echo "  -r, --rainbow         Enable rainbow mode with lolcat"
 		echo ""
 		echo "Examples:"
 		echo "  hentaifetch 177013"
@@ -494,7 +489,7 @@ if [ "$site" != "" ]; then
 fi
 
 # Check if backend is valid
-if [ "$backend" != "w3m" ] && [ "$backend" != "chafa" ] && [ "$backend" != "ascii" ] && [ "$backend" != "caca" ] && [ "$backend" != "catimg" ] && [ "$backend" != "jp2a" ] && [ "$backend" != "iterm2" ] && [ "$backend" != "kitty" ] && [ "$backend" != "off" ] && [ "$backend" != "sixel" ] && [ "$backend" != "pot" ] && [ "$backend" != "pixterm" ] && [ "$backend" != "termpix" ] && [ "$backend" != "tycat" ] && [ "$backend" != "viu" ]; then
+if [ "$backend" != "chafa" ] && [ "$backend" != "ascii" ] && [ "$backend" != "caca" ] && [ "$backend" != "catimg" ] && [ "$backend" != "jp2a" ] && [ "$backend" != "iterm2" ] && [ "$backend" != "kitty" ] && [ "$backend" != "off" ] && [ "$backend" != "sixel" ] && [ "$backend" != "pot" ] && [ "$backend" != "pixterm" ] && [ "$backend" != "termpix" ] && [ "$backend" != "tycat" ] && [ "$backend" != "viu" ] && [ "$backend" != "w3m" ]; then
 	echo "Error: invalid backend"
 	echo "See hentaifetch -h -b for valid backends"
 	exit 1
@@ -556,18 +551,22 @@ max_retries=5
 
 getdanbooru() {
 	if [ "$explicit" = 1 ]; then
-		json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Aexplicit+age%3A%3C1month+$tags")
+		json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Aexplicit+age%3A%3C3mo+$tags")
 	elif [ "$lewd" = 1 ]; then
 		sq=$((RANDOM % 2))
 		if [ "$sq" = 0 ]; then
-			json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Asensitive+age%3A%3C1month+$tags")
+			json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Asensitive+age%3A%3C3mo+$tags")
 		else
-			json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Aquestionable+age%3A%3C1month+$tags")
+			json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Aquestionable+age%3A%3C3mo+$tags")
 		fi
 	else
-		json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Ageneral+age%3A%3C1month+$tags")
+		json_full=$(curl -s "https://danbooru.donmai.us/posts.json?tags=order%3Arandom+limit%3A5+rating%3Ageneral+age%3A%3C3mo+$tags")
 	fi
 	id=$(echo "$json_full" | jq -r '.[0].id')
+	if [ "$id" = "null" ]; then
+		echo "Error: no image found"
+		exit 1
+	fi
 	image_url=$(echo "$json_full" | jq -r '.[0].file_url')
 	if [[ ! "$image_url" =~ \.(jpg|jpeg|png)$ ]]; then
 		image_url=$(echo "$json_full" | jq -r '.[0].preview_file_url')
@@ -629,7 +628,7 @@ case "$site" in
 		if [ "$tags" = "-guro -scat -furry" ]; then
 			tags=""
 		elif [ "$tags" != "" ]; then
-			if [[ $(echo "$tags" | wc -w) -gt 1 ]]; then
+			if [[ "$tags" =~ [[:space:]] ]] || [[ "$tags" =~ [+] ]]; then
 				echo "Sorry, only one tag is allowed for danbooru"
 				exit 1
 			fi
@@ -732,136 +731,143 @@ format=$(echo "$image_url" | grep -oPm1 '\.\K[^.]+$')
 
 curl -s "$image_url" >"$tmpfile.$format"
 
-columns="$(tput cols)"
-bash_version="${BASH_VERSION::1}"
-os="Linux" # Hardcoded for now
-get_window_size() {
-	# This functions gets the current window size in
-	# pixels.
-	#
-	# We first try to use the escape sequence "\033[14t"
-	# to get the terminal window size in pixels. If this
-	# fails we then fallback to using "xdotool" or other
-	# programs.
+calculateRandomStuff() {
+	columns="$(tput cols)"
+	bash_version="${BASH_VERSION::1}"
+	os="Linux" # Hardcoded for now
+	get_window_size() {
+		# This functions gets the current window size in
+		# pixels.
+		#
+		# We first try to use the escape sequence "\033[14t"
+		# to get the terminal window size in pixels. If this
+		# fails we then fallback to using "xdotool" or other
+		# programs.
 
-	# Tmux has a special way of reading escape sequences
-	# so we have to use a slightly different sequence to
-	# get the terminal size.
-	if [[ "$backend" == "tycat" ]]; then
-		printf '%b' '\e}qs\000'
+		# Tmux has a special way of reading escape sequences
+		# so we have to use a slightly different sequence to
+		# get the terminal size.
+		if [[ "$backend" == "tycat" ]]; then
+			printf '%b' '\e}qs\000'
 
-	elif [[ -z $VTE_VERSION ]]; then
-		case ${TMUX:-null} in
-		"null") printf '%b' '\e[14t' ;;
-		*) printf '%b' '\ePtmux;\e\e[14t\e\\ ' ;;
+		elif [[ -z $VTE_VERSION ]]; then
+			case ${TMUX:-null} in
+			"null") printf '%b' '\e[14t' ;;
+			*) printf '%b' '\ePtmux;\e\e[14t\e\\ ' ;;
+			esac
+		fi
+
+		# The escape codes above print the desired output as
+		# user input so we have to use read to store the out
+		# -put as a variable.
+		# The 1 second timeout is required for older bash
+		#
+		# False positive.
+		# shellcheck disable=2141
+		case $bash_version in
+		4 | 5) IFS=';t' read -d t -t 0.05 -sra term_size ;;
+		*) IFS=';t' read -d t -t 1 -sra term_size ;;
 		esac
-	fi
+		unset IFS
 
-	# The escape codes above print the desired output as
-	# user input so we have to use read to store the out
-	# -put as a variable.
-	# The 1 second timeout is required for older bash
-	#
-	# False positive.
-	# shellcheck disable=2141
-	case $bash_version in
-	4 | 5) IFS=';t' read -d t -t 0.05 -sra term_size ;;
-	*) IFS=';t' read -d t -t 1 -sra term_size ;;
-	esac
-	unset IFS
+		# Split the string into height/width.
+		if [[ "$backend" == "tycat" ]]; then
+			term_width="$((term_size[2] * term_size[0]))"
+			term_height="$((term_size[3] * term_size[1]))"
 
-	# Split the string into height/width.
-	if [[ "$backend" == "tycat" ]]; then
-		term_width="$((term_size[2] * term_size[0]))"
-		term_height="$((term_size[3] * term_size[1]))"
+		else
+			term_height="${term_size[1]}"
+			term_width="${term_size[2]}"
+		fi
 
-	else
-		term_height="${term_size[1]}"
-		term_width="${term_size[2]}"
-	fi
+		# Get terminal width/height.
+		if (("${term_width:-0}" < 50)) && [[ "$DISPLAY" && $os != "Mac OS X" && $os != "macOS" ]]; then
+			if type -p xdotool &>/dev/null; then
+				IFS=$'\n' read -d "" -ra win \
+					<<<"$(xdotool getactivewindow getwindowgeometry --shell %1)"
+				term_width="${win[3]/WIDTH=/}"
+				term_height="${win[4]/HEIGHT=/}"
 
-	# Get terminal width/height.
-	if (("${term_width:-0}" < 50)) && [[ "$DISPLAY" && $os != "Mac OS X" && $os != "macOS" ]]; then
-		if type -p xdotool &>/dev/null; then
-			IFS=$'\n' read -d "" -ra win \
-				<<<"$(xdotool getactivewindow getwindowgeometry --shell %1)"
-			term_width="${win[3]/WIDTH=/}"
-			term_height="${win[4]/HEIGHT=/}"
+			elif type -p xwininfo &>/dev/null; then
+				# Get the focused window's ID.
+				if type -p xdo &>/dev/null; then
+					current_window="$(xdo id)"
 
-		elif type -p xwininfo &>/dev/null; then
-			# Get the focused window's ID.
-			if type -p xdo &>/dev/null; then
-				current_window="$(xdo id)"
+				elif type -p xprop &>/dev/null; then
+					current_window="$(xprop -root _NET_ACTIVE_WINDOW)"
+					current_window="${current_window##* }"
 
-			elif type -p xprop &>/dev/null; then
-				current_window="$(xprop -root _NET_ACTIVE_WINDOW)"
-				current_window="${current_window##* }"
+				elif type -p xdpyinfo &>/dev/null; then
+					current_window="$(xdpyinfo | grep -F "focus:")"
+					current_window="${current_window/*window /}"
+					current_window="${current_window/,*/}"
+				fi
 
-			elif type -p xdpyinfo &>/dev/null; then
-				current_window="$(xdpyinfo | grep -F "focus:")"
-				current_window="${current_window/*window /}"
-				current_window="${current_window/,*/}"
-			fi
-
-			# If the ID was found get the window size.
-			if [[ "$current_window" ]]; then
-				term_size=("$(xwininfo -id "$current_window")")
-				term_width="${term_size[0]#*Width: }"
-				term_width="${term_width/$'\n'*/}"
-				term_height="${term_size[0]/*Height: /}"
-				term_height="${term_height/$'\n'*/}"
+				# If the ID was found get the window size.
+				if [[ "$current_window" ]]; then
+					term_size=("$(xwininfo -id "$current_window")")
+					term_width="${term_size[0]#*Width: }"
+					term_width="${term_width/$'\n'*/}"
+					term_height="${term_size[0]/*Height: /}"
+					term_height="${term_height/$'\n'*/}"
+				fi
 			fi
 		fi
+
+		term_width="${term_width:-0}"
+	}
+	get_window_size
+	font_width="$((term_width / columns))"
+	if [ "$width" = 0 ]; then
+		width="$((columns * font_width / 2))"
+	else
+		percent="${width/\%/}"
+		width="$((percent * term_width / 100))"
+		(((percent * term_height / 50) < width)) && width="$((percent * term_height / 100))"
 	fi
+	text_padding="$(((width + xoffset) / font_width + gap))"
 
-	term_width="${term_width:-0}"
-}
-get_window_size
-font_width="$((term_width / columns))"
-if [ "$width" = 0 ]; then
-	width="$((columns * font_width / 2))"
-else
-	percent="${width/\%/}"
-	width="$((percent * term_width / 100))"
-	(((percent * term_height / 50) < width)) && width="$((percent * term_height / 100))"
-fi
-text_padding="$(((width + xoffset) / font_width + gap))"
-
-# Temporarily append text_padding to neofetch config
-# This is so that neofetch will print the image in the correct position
-neoconf="$HOME/.config/neofetch/config.conf"
-if [ -f "$neoconf" ]; then
-	if grep -q "text_padding" "$neoconf"; then
-		if grep -q "^text_padding=.*# Appended by hentaifetch$" "$neoconf"; then
-			if ! grep -q "^text_padding=$text_padding # Appended by hentaifetch$" "$neoconf"; then
-				sed -i "s/^text_padding=.*/text_padding=$text_padding # Appended by hentaifetch/" "$neoconf"
+	# Temporarily append text_padding to neofetch config
+	# This is so that neofetch will print the image in the correct position
+	neoconf="$HOME/.config/neofetch/config.conf"
+	if [ -f "$neoconf" ]; then
+		if grep -q "text_padding" "$neoconf"; then
+			if grep -q "^text_padding=.*# Appended by hentaifetch$" "$neoconf"; then
+				if ! grep -q "^text_padding=$text_padding # Appended by hentaifetch$" "$neoconf"; then
+					sed -i "s/^text_padding=.*/text_padding=$text_padding # Appended by hentaifetch/" "$neoconf"
+				fi
+			else
+				sed -i "s/^text_padding=/# text_padding=/" "$neoconf"
+				echo "text_padding=$text_padding # Appended by hentaifetch" >>"$neoconf"
 			fi
 		else
-			sed -i "s/^text_padding=/# text_padding=/" "$neoconf"
 			echo "text_padding=$text_padding # Appended by hentaifetch" >>"$neoconf"
 		fi
 	else
-		echo "text_padding=$text_padding # Appended by hentaifetch" >>"$neoconf"
+		mkdir -p "$HOME/.config/neofetch"
+		touch "$neoconf"
+		echo "text_padding=$text_padding" >>"$neoconf"
 	fi
-else
-	mkdir -p "$HOME/.config/neofetch"
-	touch "$neoconf"
-	echo "text_padding=$text_padding" >>"$neoconf"
-fi
 
-# crop image to square
-read -r og_width og_height <<<"$(identify -format "%w %h" "$tmpfile.$format")"
-((og_height > og_width)) && size="$og_width" || size="$og_height"
-convert -background none "$tmpfile.$format" -gravity center -crop "${size}x${size}+0+0" -scale "${size}x${size}" "$tmpfile.$format"
+	# crop image to square
+	read -r og_width og_height <<<"$(identify -format "%w %h" "$tmpfile.$format")"
+	((og_height > og_width)) && size="$og_width" || size="$og_height"
+	convert -background none "$tmpfile.$format" -gravity center -crop "${size}x${size}+0+0" -scale "${size}x${size}" "$tmpfile.$format"
 
-((lines = (size + yoffset) + 1))
+	((lines = (size + yoffset) + 1))
+}
 
-printf '\e[2J\e[H'
-chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/"
-printf '\e[%sA\e[9999999D' "${lines:-0}"
-# if rainbow mode is enabled, pipe the output to lolcat
-if [ "$rainbow" = 1 ]; then
-	neofetch --off | lolcat
-else
-	neofetch --off
-fi
+chafaStuff() {
+	printf '\e[2J\e[H'
+	chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/"
+	printf '\e[%sA\e[9999999D' "${lines:-0}"
+	# if rainbow mode is enabled, pipe the output to lolcat
+	if [ "$rainbow" = 1 ]; then
+		neofetch --off | lolcat
+	else
+		neofetch --off
+	fi
+}
+
+calculateRandomStuff
+chafaStuff
