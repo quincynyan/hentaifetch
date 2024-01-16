@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Beta]
 
+## [0.4.2] - 2024-01-16
+
+### Added
+
+-   Fix yoffset and xoffset
+    implemented w3m and chafa
+-   Fixed default sites
+    add nhentai and wholesomelist to default sites
+-   Fix the help menu
+    be more descriptive about some commands
+    add colors to nhentai cookies
+-   Add more comments for TODO in the future
+    TODO: wrap download function and set timeout (if you're reading this, please PR because idk how to)
+    Removed some debug stuff
+-   Moved chafa and w3m to their dedicated functions
+    Need to talk to chafa dev to add xoffset and yoffset
+-   Put everything in wrapped functions nicely (idk if it's more or less readable)
+-   Display ID below image (nhentai)
+
 ## [0.3.0] - 2023-10-08
 
 ### Added

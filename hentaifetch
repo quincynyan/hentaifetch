@@ -40,14 +40,14 @@ fi
 # explicit=0
 # lewd=0
 # backend="chafa"
-# yoffset=0
-# xoffset=0
+# yoffset=28
+# xoffset=20
 # width=0
 # height=0
 # gap=3
 # id=0
 # tags="-guro -scat -furry"
-# sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
+# sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life" "nhentai")
 # # sites=("nhentai") 	# Uncomment this line to only use nhentai
 # nh_cookie="" 	# Paste your nhentai cookie here between the quotes
 # user_agent="" 	# Paste your user agent here between the quotes
@@ -57,14 +57,14 @@ site=""
 explicit=0
 lewd=0
 backend="chafa"
-yoffset=0
-xoffset=0
+yoffset=28
+xoffset=20
 width=0
 height=0
 gap=3
 id=0
 tags="-guro -scat -furry"
-sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life")
+sites=("gelbooru" "danbooru" "konachan" "yandere" "sankaku" "rule34" "realbooru" "xbooru" "tbib" "lolibooru" "idolcomplex" "anime-pictures" "zerochan" "safebooru" "nekos.life" "nhentai")
 site=""
 rainbow=0
 nh_cookie=""
@@ -85,14 +85,14 @@ else
 		echo "explicit=0"
 		echo "lewd=0"
 		echo "backend=\"chafa\""
-		echo "yoffset=0"
-		echo "xoffset=0"
+		echo "yoffset=28"
+		echo "xoffset=20"
 		echo "width=0"
 		echo "height=0"
 		echo "gap=3"
 		echo "id=0"
 		echo "tags=\"-guro -scat -furry\""
-		echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\")"
+		echo "sites=(\"gelbooru\" \"danbooru\" \"konachan\" \"yandere\" \"sankaku\" \"rule34\" \"realbooru\" \"xbooru\" \"tbib\" \"lolibooru\" \"idolcomplex\" \"anime-pictures\" \"zerochan\" \"safebooru\" \"nekos.life\" \"nhentai\")"
 		echo "# sites=(\"nhentai\") # Uncomment this line to only use nhentai"
 		echo "rainbow=0"
 		echo "nh_cookie=\"\" # Paste your nhentai cookie here between the quotes"
@@ -189,8 +189,8 @@ while [ $# -gt 0 ]; do
 			"-y" | "--yoffset")
 				echo "Usage: hentaifetch -y [YOFFSET]"
 				echo "Set the y offset"
-				echo "How close the image will be to the top edge of the window."
-				echo "Default: 0"
+				echo "How close the image will be to the top edge of the window. (in pixels)"
+				echo "Default: 28"
 				echo ""
 				echo "Examples:"
 				echo "  hentaifetch -y 4"
@@ -201,12 +201,12 @@ while [ $# -gt 0 ]; do
 			"-x" | "--xoffset")
 				echo "Usage: hentaifetch -x [XOFFSET]"
 				echo "Set the x offset"
-				echo "How close the image will be to the left edge of the window."
-				echo "Default: 0"
+				echo "How close the image will be to the left edge of the window. (in pixels)"
+				echo "Default: 20"
 				echo ""
 				echo "Examples:"
 				echo "  hentaifetch -x 4"
-				echo "  hentaifetch --xoffset 20"
+				echo "  hentaifetch --xoffset 28"
 				echo ""
 				exit 0
 				;;
@@ -311,20 +311,20 @@ while [ $# -gt 0 ]; do
 				exit 0
 				;;
 			"cookie")
-				echo "NHentai has a new barrier by Cloudflare that throws a 403 error, which curl can't pass due to the javascript challenge (unless you pass -FsSL)."
-				echo "One way to bypass this is to use a cookie from a browser that has already passed the challenge."
+				echo -e "\e[35mNHentai has a new barrier by Cloudflare that throws a 403 error, which curl can't pass due to the javascript challenge (unless you pass -FsSL).\e[0m"
+				echo -e "\e[33mOne way to bypass this is to use a cookie from a browser that has already passed the challenge."
 				echo "To get the cookie, open nhentai.net in your browser, open the developer tools, go to the network tab, and reload the page."
 				echo "Click on the first request (200 GET nhentai.net /), and copy the value of the cookie header (which is in the Request Headers section at the bottom)."
 				echo "Also copy the User-Agent value (which is also in the Request Headers section) and Content-type if it exists."
 				echo "(If you can't find Content-type, just copy the Cookie value and the User-Agent value)"
-				echo "The User-Agent value looks something like this:"
+				echo -e "\e[34mThe User-Agent value looks something like this:"
 				echo "Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0"
 				echo "or"
 				echo "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
 				echo "Just make sure you copy the whole thing. The entire User-Agent, and also the entire Cookie."
 				echo "Then, edit the config file (in ~/.config/hentaifetch.conf) and paste the values into nh_cookie and user_agent respectively."
 				echo ""
-				echo "In summary:"
+				echo -e "\e[97mIn summary:"
 				echo "1. Open nhentai.net in your browser"
 				echo "2. Open the developer tools (F12)"
 				echo "3. Go to the network tab"
@@ -336,7 +336,7 @@ while [ $# -gt 0 ]; do
 				echo "9. Copy the User-Agent value"
 				echo "10. Edit the config file and paste the value into user_agent"
 				echo ""
-				echo "nhentai cookies only last for 7 days, you need to update them once they expire"
+				echo -e "\e[31mnhentai cookies only last for 7 days, you need to update them once they expire\e[0m"
 				echo ""
 				exit 0
 				;;
@@ -349,8 +349,8 @@ while [ $# -gt 0 ]; do
 				echo "  -e, --explicit        Enable explicit content"
 				echo "  -l, --lewd            Enable lewd content"
 				echo "  -b, --backend BACKEND Set the backend to use"
-				echo "  -y, --yoffset YOFFSET Set the y offset"
-				echo "  -x, --xoffset XOFFSET Set the x offset"
+				echo "  -y, --yoffset YOFFSET Set the y offset in px"
+				echo "  -x, --xoffset XOFFSET Set the x offset in px"
 				echo "  -W, --width WIDTH     Set the width"
 				echo "  -H, --height HEIGHT   Set the height"
 				echo "  -g, --gap GAP         Set the gap"
@@ -376,8 +376,8 @@ while [ $# -gt 0 ]; do
 			echo "  -e, --explicit        Enable explicit content"
 			echo "  -l, --lewd            Enable lewd content"
 			echo "  -b, --backend BACKEND Set the backend to use"
-			echo "  -y, --yoffset YOFFSET Set the y offset"
-			echo "  -x, --xoffset XOFFSET Set the x offset"
+			echo "  -y, --yoffset YOFFSET Set the y offset in px"
+			echo "  -x, --xoffset XOFFSET Set the x offset in px"
 			echo "  -W, --width WIDTH     Set the width"
 			echo "  -H, --height HEIGHT   Set the height"
 			echo "  -g, --gap GAP         Set the gap"
@@ -452,8 +452,8 @@ while [ $# -gt 0 ]; do
 		echo "  -e, --explicit        Enable explicit content"
 		echo "  -l, --lewd            Enable lewd content"
 		echo "  -b, --backend BACKEND Set the backend to use"
-		echo "  -y, --yoffset YOFFSET Set the y offset"
-		echo "  -x, --xoffset XOFFSET Set the x offset"
+		echo "  -y, --yoffset YOFFSET Set the y offset in px"
+		echo "  -x, --xoffset XOFFSET Set the x offset in px"
 		echo "  -W, --width WIDTH     Set the width"
 		echo "  -H, --height HEIGHT   Set the height"
 		echo "  -g, --gap GAP         Set the gap"
@@ -696,11 +696,14 @@ case "$site" in
 			fi
 		else
 			id=$(echo "$json_full" | jq -r '.entry.nh' | grep -oPm1 '(?<=/g/)\d+')
+			id="nhentai ID: $id"
 		fi
 	fi
 	;;
 esac
 
+# # 								TODO: timeout this inside a function when downloading takes more than 10 seconds
+# # 								downloadImage() {
 echo "Downloading image..."
 
 # echo "$json_full" # Debug
@@ -730,6 +733,7 @@ format=$(echo "$image_url" | grep -oPm1 '\.\K[^.]+$')
 # echo "$format" # Debug
 
 curl -s "$image_url" >"$tmpfile.$format"
+# # 								}
 
 calculateRandomStuff() {
 	columns="$(tput cols)"
@@ -858,9 +862,9 @@ calculateRandomStuff() {
 }
 
 chafaStuff() {
-	printf '\e[2J\e[H'
-	chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/"
-	printf '\e[%sA\e[9999999D' "${lines:-0}"
+	printf '\e[2J\e[H'                                                                                            # clear screen and move cursor to top left
+	chafa --size="$((columns / 2))x$((columns / 2))" "$tmpfile.$format" | sed "s/^/$(printf '\033[38;2;0;0;0m')/" # print image and set foreground color to black
+	printf '\e[%sA\e[9999999D' "${lines:-0}"                                                                      # move cursor to top left of image and move up by $lines lines
 	# if rainbow mode is enabled, pipe the output to lolcat
 	if [ "$rainbow" = 1 ]; then
 		neofetch --off | lolcat
@@ -869,5 +873,31 @@ chafaStuff() {
 	fi
 }
 
+w3mStuff() {
+	printf '\e[2J\e[H' # clear screen and move cursor to top left
+	((bash_version > 3)) && sleep 0.05
+	printf '%b\n%s;\n%s\n' "0;1;$xoffset;$yoffset;$width;$width;;;;;$tmpfile.$format" 3 4 | /usr/lib/w3m/w3mimgdisplay &>/dev/null
+	printf '\e[%sA\e[9999999D' "${lines:-0}" # move cursor to top left of image and move up by $lines lines
+	# if rainbow mode is enabled, pipe the output to lolcat
+	if [ "$rainbow" = 1 ]; then
+		neofetch --off | lolcat
+	else
+		neofetch --off
+	fi
+	printf '%b\n%s;\n%s\n' "0;1;$xoffset;$yoffset;$width;$width;;;;;$tmpfile.$format" 3 4 | /usr/lib/w3m/w3mimgdisplay &>/dev/null
+	printf '%b\n%s;\n%s\n' "0;1;$xoffset;$yoffset;$width;$width;;;;;$tmpfile.$format" 3 4 | /usr/lib/w3m/w3mimgdisplay &>/dev/null
+	sleep 1
+	printf '%b\n%s;\n%s\n' "0;1;$xoffset;$yoffset;$width;$width;;;;;$tmpfile.$format" 3 4 | /usr/lib/w3m/w3mimgdisplay &>/dev/null
+}
+
 calculateRandomStuff
-chafaStuff
+if [ "$backend" = "chafa" ]; then
+	chafaStuff
+elif [ "$backend" = "w3m" ]; then
+	w3mStuff
+fi
+
+if [ "$site" = "nhentai" ] || [ "$site" = "hmarket.io" ] || [ "$site" = "imgchest.com" ] || [ "$site" = "e-hentai.org" ]; then
+	printf '\e[1A'
+	echo "$id"
+fi
